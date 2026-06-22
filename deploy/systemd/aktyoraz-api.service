@@ -1,0 +1,20 @@
+[Unit]
+Description=Aktyor.az API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/aktyor.az
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run start:prod --prefix backend
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/aktyoraz /var/www/aktyor.az/backend
+
+[Install]
+WantedBy=multi-user.target
