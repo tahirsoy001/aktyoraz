@@ -50,7 +50,7 @@ const openaiApiKey = process.env.OPENAI_API_KEY ?? "";
 const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
 const openaiEmbeddingModel = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
 const uploadDir = path.resolve(__dirname, "..", process.env.UPLOAD_DIR ?? "uploads");
-const uploadBaseUrl = process.env.UPLOAD_BASE_URL ?? publicBaseUrl;
+const uploadBaseUrl = process.env.UPLOAD_BASE_URL ?? "";
 const adminLoginRateLimitWindowMs = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
 const adminLoginRateLimitMax = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX ?? 5);
 const pdfRegularFontPath =
@@ -1339,7 +1339,7 @@ app.post("/api/admin/uploads/photo", requireAdmin, upload.single("photo"), (requ
       filename: request.file.filename,
       mimetype: request.file.mimetype,
       size: request.file.size,
-      url: `${uploadBaseUrl}/uploads/${request.file.filename}`,
+      url: `${uploadBaseUrl}/uploads/${request.file.filename}`.replace(/^\/\//, "/"),
     },
   });
 });
