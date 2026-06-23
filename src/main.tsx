@@ -884,9 +884,6 @@ function Header() {
         <a className={isActive("/casting-ai") ? "nav-link active" : "nav-link"} href="/casting-ai">
           AI kastinq
         </a>
-        <a className={isActive("/admin") ? "primary-link active" : "primary-link"} href="/admin">
-          Admin
-        </a>
       </nav>
     </header>
   );
