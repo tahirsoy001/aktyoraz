@@ -992,6 +992,9 @@ function HomePage({
   );
   const collageActors = getHomeCollageActors(publicActors);
   const verifiedCount = actors.filter((actor) => actor.status === "verified").length;
+  const actorCount = publicActors.filter((actor) => actor.role.toLowerCase() === "aktyor").length;
+  const actressCount = publicActors.filter((actor) => actor.role.toLowerCase() === "aktrisa").length;
+  const childActorCount = publicActors.filter((actor) => actor.role.toLowerCase().includes("uşaq")).length;
   const cities = getUniqueValues(publicActors, "city");
   const roles = getUniqueValues(publicActors, "role");
   const showreelCount = publicActors.filter((actor) => actor.showreel).length;
@@ -1032,8 +1035,16 @@ function HomePage({
               <span>favorit</span>
             </div>
             <div>
-              <strong><AnimatedCounter value={cities.length} /></strong>
-              <span>şəhər</span>
+              <strong><AnimatedCounter value={actorCount} /></strong>
+              <span>aktyor</span>
+            </div>
+            <div>
+              <strong><AnimatedCounter value={actressCount} /></strong>
+              <span>aktrisa</span>
+            </div>
+            <div>
+              <strong><AnimatedCounter value={childActorCount} /></strong>
+              <span>uşaq</span>
             </div>
           </div>
         </div>
