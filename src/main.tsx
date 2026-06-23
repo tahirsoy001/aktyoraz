@@ -921,6 +921,11 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
   );
 }
 
+function shuffleActors(actors: Actor[], randomRanks: Map<string, number>) {
+  return [...actors]
+    .sort((first, second) => (randomRanks.get(first.id) ?? 0) - (randomRanks.get(second.id) ?? 0));
+}
+
 function Portrait({ actor }: { actor: Actor }) {
   if (actor.photo) {
     return <img className="portrait photo" src={actor.photo} alt={actor.name} />;
@@ -1151,6 +1156,10 @@ function ActorsPage({
   onToggleShortlist: (actorId: string) => void;
 }) {
   const publicActors = sortByRating(actors.filter((actor) => actor.status !== "inactive"));
+  const browseRandomRanks = useMemo(
+    () => new Map(publicActors.map((actor) => [actor.id, Math.random()])),
+    [publicActors.map((actor) => actor.id).join("|")],
+  );
   const topActors = getTopActors(publicActors);
   const favoriteActors = publicActors.filter((actor) => shortlist.includes(actor.id));
   const verifiedActors = publicActors.filter((actor) => actor.status === "verified");
@@ -1175,7 +1184,9 @@ function ActorsPage({
     { actors: publicActors.filter((actor) => effectiveRating(actor) >= 4.7), title: "Ən yüksək reytinq" },
     ...roleRows,
     ...cityRows,
-  ].filter((row) => row.actors.length);
+  ]
+    .filter((row) => row.actors.length)
+    .map((row) => ({ ...row, actors: shuffleActors(row.actors, browseRandomRanks) }));
 
   function scrollRail(railId: string, direction: "left" | "right") {
     const rail = document.getElementById(railId);
