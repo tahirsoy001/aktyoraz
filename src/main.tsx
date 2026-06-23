@@ -1855,6 +1855,7 @@ function AdminLoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1889,13 +1890,22 @@ function AdminLoginPage({
           </label>
           <label>
             Parol
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
+            <span className="password-field">
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type={isPasswordVisible ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={isPasswordVisible ? "Parolu gizlət" : "Parolu göstər"}
+                onClick={() => setIsPasswordVisible((visible) => !visible)}
+                type="button"
+              >
+                {isPasswordVisible ? "Gizlət" : "Göstər"}
+              </button>
+            </span>
           </label>
           {error && <div className="form-error">{error}</div>}
           <button className="button" disabled={isSubmitting} type="submit">

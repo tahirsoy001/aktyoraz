@@ -1849,6 +1849,33 @@ h1 {
   padding: 12px;
 }
 
+.password-field {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 92px;
+}
+
+.password-field input {
+  width: 100%;
+}
+
+.password-field button {
+  background: #111827;
+  border: 1px solid #111827;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.password-field button:hover {
+  background: #374151;
+}
+
 .form-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
