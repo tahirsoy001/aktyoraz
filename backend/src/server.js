@@ -338,13 +338,14 @@ function drawPdfCard(doc, actor, qrBuffer) {
 
   doc.roundedRect(cardX, cardY, cardWidth, 520, 14).fillAndStroke("#ffffff", "#deded6");
   doc.rect(cardX, cardY, cardWidth, 86).fill("#111827");
-  doc.fillColor("#ffffff").fontSize(17).font(boldFont).text("Azərbaycan Aktyor və Aktrisa Bazası", cardX + 22, cardY + 21, {
+  doc.fillColor("#ffffff").fontSize(14).font(boldFont).text("Azərbaycan Aktyor və Aktrisa Bazası", cardX + 22, cardY + 23, {
     width: cardWidth - 44,
+    lineBreak: false,
   });
   doc
     .fontSize(9)
     .font(regularFont)
-    .text("Rəqəmsal aktyor təsdiq kartı", cardX + 22, cardY + 51);
+    .text("Rəqəmsal aktyor təsdiq kartı", cardX + 22, cardY + 52);
 
   if (photoPath && fs.existsSync(photoPath)) {
     doc.image(photoPath, cardX + 22, cardY + 112, { fit: [118, 150], align: "center" });
