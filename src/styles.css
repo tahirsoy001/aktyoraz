@@ -83,46 +83,33 @@ textarea {
 .brand {
   align-items: center;
   display: inline-flex;
-  gap: 10px;
+  gap: 14px;
   letter-spacing: 0;
 }
 
 .brand-mark {
-  align-items: baseline;
-  background: linear-gradient(135deg, #f5c518 0%, #ffd84d 100%);
-  border: 1px solid rgba(17, 24, 39, 0.92);
-  border-radius: 7px;
-  box-shadow:
-    inset 0 -1px 0 rgba(17, 24, 39, 0.22),
-    0 8px 20px rgba(17, 24, 39, 0.12);
-  color: #111827;
-  display: inline-flex;
-  font-family: "Arial Black", Arial, Helvetica, sans-serif;
-  font-size: 27px;
-  font-weight: 950;
-  gap: 1px;
-  letter-spacing: -0.6px;
-  line-height: 0.9;
-  padding: 9px 10px 8px;
-  text-transform: uppercase;
+  display: block;
+  filter: drop-shadow(0 8px 16px rgba(17, 24, 39, 0.12));
+  height: auto;
+  width: clamp(116px, 11vw, 150px);
 }
 
-.brand-mark span {
-  font-size: 1em;
-  letter-spacing: 0;
-  line-height: 1;
-  margin-left: 1px;
-  text-transform: none;
+.brand-divider {
+  background: rgba(17, 24, 39, 0.16);
+  display: block;
+  height: 34px;
+  width: 1px;
 }
 
 .brand-text {
   color: var(--ink);
-  display: block;
-  font-size: 12px;
+  display: grid;
+  font-size: 12.5px;
   font-weight: 900;
-  letter-spacing: 0.6px;
-  line-height: 1.15;
-  max-width: 150px;
+  gap: 2px;
+  letter-spacing: 1px;
+  line-height: 1.05;
+  max-width: 210px;
   text-transform: uppercase;
 }
 
@@ -2450,13 +2437,17 @@ h1 {
   }
 
   .brand-mark {
-    font-size: 23px;
-    padding: 7px 8px 6px;
+    width: 104px;
+  }
+
+  .brand-divider {
+    height: 30px;
   }
 
   .brand-text {
     font-size: 11px;
-    max-width: 138px;
+    letter-spacing: 0.55px;
+    max-width: 162px;
   }
 
   .nav {

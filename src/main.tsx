@@ -863,10 +863,12 @@ function Header() {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-        <span className="brand-mark" aria-label="AAAb">
-          AAA<span>b</span>
+        <img className="brand-mark" src="/aaab-logo.svg" alt="AAAb" width="140" height="49" />
+        <span className="brand-divider" aria-hidden="true" />
+        <span className="brand-text">
+          <span>Azərbaycan Aktyor</span>
+          <span>və Aktrisa Bazası</span>
         </span>
-        <span className="brand-text">Azərbaycan Aktyor və Aktrisa Bazası</span>
       </a>
       <nav className="nav" aria-label="Əsas menyu">
         <a className={isActive("/") ? "nav-link active" : "nav-link"} href="/">
