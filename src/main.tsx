@@ -3460,20 +3460,49 @@ function App() {
       return;
     }
 
-    Promise.all([
-      fetchApplications(adminSession.token),
-      fetchAuditLogs(adminSession.token),
-      fetchAiCastingFeedback(adminSession.token),
-      fetchAiIndexStatus(adminSession.token),
-    ])
-      .then(([nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus]) => {
-        setApplications(nextApplications);
-        setAuditLogs(nextAuditLogs);
-        setAiFeedback(nextAiFeedback);
-        setAiIndexStatus(nextAiIndexStatus);
+    let isActive = true;
+    const adminToken = adminSession.token;
+
+    async function loadAdminData() {
+      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus] =
+        await Promise.allSettled([
+          fetchApplications(adminToken),
+          fetchAuditLogs(adminToken),
+          fetchAiCastingFeedback(adminToken),
+          fetchAiIndexStatus(adminToken),
+        ]);
+
+      if (!isActive) {
+        return;
+      }
+
+      if (nextApplications.status === "fulfilled") {
+        setApplications(nextApplications.value);
         setApiStatus("online");
-      })
-      .catch(() => setApiStatus("offline"));
+      } else {
+        setApiStatus("offline");
+      }
+
+      if (nextAuditLogs.status === "fulfilled") {
+        setAuditLogs(nextAuditLogs.value);
+      }
+
+      if (nextAiFeedback.status === "fulfilled") {
+        setAiFeedback(nextAiFeedback.value);
+      }
+
+      if (nextAiIndexStatus.status === "fulfilled") {
+        setAiIndexStatus(nextAiIndexStatus.value);
+      }
+    }
+
+    loadAdminData();
+    const intervalId = window.setInterval(loadAdminData, 30000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
   }, [adminSession]);
 
   async function updateActors(nextActors: Actor[]) {
