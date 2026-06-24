@@ -14,6 +14,7 @@ export type Actor = {
   genres?: string[];
   specialSkills?: string[];
   titles?: string[];
+  browseCategories?: string[];
   status: "verified" | "review" | "inactive";
   summary: string;
   aiBio?: string;

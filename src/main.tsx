@@ -242,6 +242,7 @@ type ActorForm = {
   genres: string;
   specialSkills: string;
   titles: string;
+  browseCategories: string;
   status: Actor["status"];
   summary: string;
   aiBio: string;
@@ -287,6 +288,7 @@ const emptyForm: ActorForm = {
   genres: "Dram, Komediya",
   specialSkills: "",
   titles: "",
+  browseCategories: "",
   status: "review",
   summary: "",
   aiBio: "",
@@ -355,6 +357,7 @@ function normalizeActor(actor: Partial<Actor>): Actor {
     genres: actor.genres ?? fallback?.genres ?? [],
     specialSkills: actor.specialSkills ?? fallback?.specialSkills ?? [],
     titles: actor.titles ?? fallback?.titles ?? [],
+    browseCategories: actor.browseCategories ?? fallback?.browseCategories ?? [],
     status: actor.status ?? fallback?.status ?? "review",
     summary: actor.summary ?? fallback?.summary ?? "",
     aiBio: actor.aiBio ?? fallback?.aiBio ?? "",
@@ -561,8 +564,8 @@ function getUniqueValues(actors: Actor[], key: "role" | "city") {
   );
 }
 
-function getUniqueListValues(actors: Actor[], key: "languages" | "skills") {
-  return [...new Set(actors.flatMap((actor) => actor[key]).filter(Boolean))].sort((a, b) =>
+function getUniqueListValues(actors: Actor[], key: "languages" | "skills" | "browseCategories") {
+  return [...new Set(actors.flatMap((actor) => actor[key] ?? []).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "az"),
   );
 }
@@ -764,6 +767,7 @@ function formToActor(form: ActorForm, existingActors: Actor[], currentId?: strin
     genres: splitList(form.genres),
     specialSkills: splitList(form.specialSkills),
     titles: splitList(form.titles),
+    browseCategories: splitList(form.browseCategories),
     status: form.status,
     summary: form.summary.trim(),
     aiBio: form.aiBio.trim(),
@@ -822,6 +826,7 @@ function actorToForm(actor: Actor): ActorForm {
     genres: (actor.genres ?? []).join(", "),
     specialSkills: (actor.specialSkills ?? []).join(", "),
     titles: (actor.titles ?? []).join(", "),
+    browseCategories: (actor.browseCategories ?? []).join(", "),
     status: actor.status,
     summary: actor.summary,
     aiBio: actor.aiBio ?? "",
@@ -1162,9 +1167,13 @@ function ActorsPage({
     () => new Map(publicActors.map((actor) => [actor.id, Math.random()])),
     [publicActors.map((actor) => actor.id).join("|")],
   );
-  const topActors = getTopActors(publicActors);
+  const topActors = shuffleActors(getTopActors(publicActors), browseRandomRanks);
   const favoriteActors = publicActors.filter((actor) => shortlist.includes(actor.id));
   const verifiedActors = publicActors.filter((actor) => actor.status === "verified");
+  const customCategoryRows = getUniqueListValues(publicActors, "browseCategories").map((category) => ({
+    actors: publicActors.filter((actor) => (actor.browseCategories ?? []).includes(category)),
+    title: category,
+  }));
   const roleRows = getUniqueValues(publicActors, "role").map((role) => ({
     actors: publicActors.filter((actor) => actor.role === role),
     title: role,
@@ -1183,7 +1192,8 @@ function ActorsPage({
     ...(favoriteActors.length ? [{ actors: favoriteActors, title: "Favoritlərin" }] : []),
     { actors: verifiedActors, title: "Təsdiqlənmiş profillər" },
     ...titleRows,
-    { actors: publicActors.filter((actor) => effectiveRating(actor) >= 4.7), title: "Ən yüksək reytinq" },
+    { actors: publicActors.filter((actor) => effectiveRating(actor) >= 4.8), title: "Ən yüksək reytinq" },
+    ...customCategoryRows,
     ...roleRows,
     ...cityRows,
   ]
@@ -2283,6 +2293,7 @@ function AdminPage({
   const browseTopActors = getTopActors(publicActors);
   const browseRoles = getUniqueValues(publicActors, "role");
   const browseCities = getUniqueValues(publicActors, "city");
+  const browseCustomCategories = getUniqueListValues(publicActors, "browseCategories");
   const homeCollageActors = getHomeCollageActors(publicActors);
   const photoCount = publicActors.filter((actor) => actor.photo).length;
   const showreelCount = publicActors.filter((actor) => actor.showreel).length;
@@ -2558,6 +2569,9 @@ function AdminPage({
                 <span>Əməkdar artist</span>
                 <span>Viral aktyor</span>
                 <span>Ən yüksək reytinq</span>
+                {browseCustomCategories.map((category) => (
+                  <span key={category}>{category}</span>
+                ))}
                 {browseRoles.map((role) => (
                   <span key={role}>{role}</span>
                 ))}
@@ -2580,7 +2594,7 @@ function AdminPage({
             </div>
             <p>
               Top 5 üçün “Top 5 sırası”, ana səhifə kolajı üçün “Ana səhifə kolaj sırası” yaz.
-              Boş yerlər reytinqə görə avtomatik tamamlanır.
+              Boş yerlər reytinqə görə avtomatik tamamlanır. Yeni Baza slide üçün profilə “Baza slide kateqoriyaları” əlavə et.
             </p>
           </div>
           <div className="admin-browse-panel">
@@ -2909,6 +2923,14 @@ function AdminPage({
             />
           </label>
           <label>
+            Baza slide kateqoriyaları
+            <input
+              onChange={(event) => updateForm("browseCategories", event.target.value)}
+              placeholder="İnkluziv, Reklam simaları, Gənc istedadlar"
+              value={form.browseCategories}
+            />
+          </label>
+          <label>
             Qısa təsvir
             <textarea
               onChange={(event) => updateForm("summary", event.target.value)}
@@ -3217,6 +3239,9 @@ function AdminPage({
                   {actor.homeOrder && (
                     <span className="badge rating-badge">Home kolaj {actor.homeOrder}</span>
                   )}
+                  {(actor.browseCategories ?? []).map((category) => (
+                    <span className="badge" key={category}>Slide: {category}</span>
+                  ))}
                   <span className={actor.cardStatus === "inactive" ? "badge warning" : "badge success"}>
                     Kart: {actor.cardStatus === "inactive" ? "deaktiv" : "aktiv"}
                   </span>
