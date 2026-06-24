@@ -53,10 +53,26 @@ const uploadDir = path.resolve(__dirname, "..", process.env.UPLOAD_DIR ?? "uploa
 const uploadBaseUrl = process.env.UPLOAD_BASE_URL ?? "";
 const adminLoginRateLimitWindowMs = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
 const adminLoginRateLimitMax = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX ?? 5);
-const pdfRegularFontPath =
-  process.env.PDF_FONT_REGULAR ?? "/System/Library/Fonts/Supplemental/Arial Unicode.ttf";
-const pdfBoldFontPath =
-  process.env.PDF_FONT_BOLD ?? "/System/Library/Fonts/Supplemental/Arial Bold.ttf";
+function findExistingFile(paths) {
+  return paths.find((candidate) => candidate && fs.existsSync(candidate)) ?? "";
+}
+
+const pdfRegularFontPath = findExistingFile([
+  process.env.PDF_FONT_REGULAR,
+  "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+  "/System/Library/Fonts/Supplemental/Arial.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+  "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]);
+const pdfBoldFontPath = findExistingFile([
+  process.env.PDF_FONT_BOLD,
+  "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+  "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+  "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+  pdfRegularFontPath,
+]);
 
 assertProductionConfig();
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -308,15 +324,15 @@ function drawPdfCard(doc, actor, qrBuffer) {
   const cardX = margin;
   const cardY = 34;
   const photoPath = getPhotoPath(actor.photo);
-  const regularFont = fs.existsSync(pdfRegularFontPath) ? "AktyorRegular" : "Helvetica";
-  const boldFont = fs.existsSync(pdfBoldFontPath) ? "AktyorBold" : "Helvetica-Bold";
+  const regularFont = pdfRegularFontPath ? "AktyorRegular" : "Helvetica";
+  const boldFont = pdfBoldFontPath ? "AktyorBold" : "Helvetica-Bold";
   const cardState = getCardVerificationState(actor);
 
-  if (regularFont === "AktyorRegular") {
+  if (pdfRegularFontPath) {
     doc.registerFont("AktyorRegular", pdfRegularFontPath);
   }
 
-  if (boldFont === "AktyorBold") {
+  if (pdfBoldFontPath) {
     doc.registerFont("AktyorBold", pdfBoldFontPath);
   }
 
