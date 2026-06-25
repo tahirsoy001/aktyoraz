@@ -109,6 +109,11 @@ function setSeo(config: SeoConfig) {
   setJsonLd(config.jsonLd);
 }
 
+function cleanMetaText(value: string, maxLength: number) {
+  const text = value.replace(/\uFFFC/g, "").replace(/\s+/g, " ").trim();
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1).trim()}…`;
+}
+
 function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []): SeoConfig {
   const actorSlug = path.startsWith("/actors/") ? decodeURIComponent(path.replace("/actors/", "")) : "";
   const actorId = path.startsWith("/id/") ? decodeURIComponent(path.replace("/id/", "")) : "";
@@ -213,12 +218,12 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
   if (newsPost) {
     return {
       canonical: `${SITE_URL}/news/${newsPost.slug}`,
-      description: newsPost.seoDescription || newsPost.excerpt,
+      description: cleanMetaText(newsPost.seoDescription || newsPost.excerpt, 190),
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
         headline: newsPost.title,
-        description: newsPost.seoDescription || newsPost.excerpt,
+        description: cleanMetaText(newsPost.seoDescription || newsPost.excerpt, 190),
         datePublished: newsPost.publishedAt || newsPost.createdAt,
         dateModified: newsPost.updatedAt,
         image: newsPost.coverImage ? [newsPost.coverImage] : [`${SITE_URL}/og-default.png`],
@@ -233,7 +238,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
         },
       },
       ogImage: newsPost.coverImage || `${SITE_URL}/og-default.png`,
-      title: newsPost.seoTitle || `${newsPost.title} | Aktyor.az xəbərləri`,
+      title: cleanMetaText(newsPost.seoTitle || `${newsPost.title} | Aktyor.az xəbərləri`, 95),
       type: "article",
     };
   }

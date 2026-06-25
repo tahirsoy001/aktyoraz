@@ -275,6 +275,19 @@ function absoluteUrl(value) {
   return `${publicBaseUrl}${text.startsWith("/") ? text : `/${text}`}`;
 }
 
+function cleanMetaText(value, maxLength) {
+  const text = String(value ?? "")
+    .replace(/\uFFFC/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1).trim()}…`;
+}
+
 function sitemapUrl(pathname, priority = "0.7", lastmod = new Date().toISOString().slice(0, 10)) {
   return `  <url>
     <loc>${xmlEscape(`${publicBaseUrl}${pathname}`)}</loc>
@@ -1739,9 +1752,9 @@ function getPageMeta(pathname) {
     if (actor) {
       return {
         canonical: `${publicBaseUrl}/actors/${encodeURIComponent(actor.slug)}`,
-        description: `${actor.name} - ${actor.role}, ${actor.city}. Yaş aralığı: ${actor.ageRange}, boy: ${actor.height}. Aktyor.az profili və kastinq məlumatları.`,
+        description: cleanMetaText(`${actor.name} - ${actor.role}, ${actor.city}. Yaş aralığı: ${actor.ageRange}, boy: ${actor.height}. Aktyor.az profili və kastinq məlumatları.`, 180),
         image: absoluteUrl(actor.photo),
-        title: `${actor.name} - ${actor.role} | Aktyor.az`,
+        title: cleanMetaText(`${actor.name} - ${actor.role} | Aktyor.az`, 90),
         type: "profile",
       };
     }
@@ -1764,9 +1777,9 @@ function getPageMeta(pathname) {
     if (post) {
       return {
         canonical: `${publicBaseUrl}/news/${encodeURIComponent(post.slug)}`,
-        description: post.seoDescription || post.excerpt,
+        description: cleanMetaText(post.seoDescription || post.excerpt, 190),
         image: absoluteUrl(post.coverImage),
-        title: post.seoTitle || `${post.title} | Aktyor.az xəbərləri`,
+        title: cleanMetaText(post.seoTitle || `${post.title} | Aktyor.az xəbərləri`, 95),
         type: "article",
       };
     }
@@ -1779,9 +1792,9 @@ function getPageMeta(pathname) {
     if (actor) {
       return {
         canonical: `${publicBaseUrl}/id/${encodeURIComponent(actor.id)}`,
-        description: `${actor.name} üçün Aktyor.az rəqəmsal ID və təsdiq səhifəsi.`,
+        description: cleanMetaText(`${actor.name} üçün Aktyor.az rəqəmsal ID və təsdiq səhifəsi.`, 180),
         image: absoluteUrl(actor.photo),
-        title: `${actor.name} rəqəmsal ID | Aktyor.az`,
+        title: cleanMetaText(`${actor.name} rəqəmsal ID | Aktyor.az`, 90),
         type: "profile",
       };
     }
