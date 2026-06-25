@@ -11,19 +11,25 @@ import {
   createAiCastingFeedback,
   castingSearch,
   createActorApplication,
+  deleteAdminNewsPost,
   fetchAiCastingFeedback,
   fetchActorsFromApi,
   fetchAuditLogs,
+  fetchAdminNews,
   fetchAiIndexStatus,
   fetchApplications,
+  fetchNewsFromApi,
   getActorCardPdfUrl,
   getActorQrSvgUrl,
   loginAdmin,
   NewActorApplication,
+  NewsPost,
+  NewsPostInput,
   rateActorInApi,
   reindexAiProfiles,
   replaceActorsInApi,
   resetSeedInApi,
+  saveAdminNewsPost,
   updateApplicationStatus,
   uploadActorPhoto,
 } from "@/api";
@@ -103,13 +109,17 @@ function setSeo(config: SeoConfig) {
   setJsonLd(config.jsonLd);
 }
 
-function getRouteSeo(path: string, actors: Actor[]): SeoConfig {
+function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []): SeoConfig {
   const actorSlug = path.startsWith("/actors/") ? decodeURIComponent(path.replace("/actors/", "")) : "";
   const actorId = path.startsWith("/id/") ? decodeURIComponent(path.replace("/id/", "")) : "";
+  const newsSlug = path.startsWith("/news/") ? decodeURIComponent(path.replace("/news/", "")) : "";
   const profileActor = actorSlug
     ? actors.find((actor) => actor.slug === actorSlug || slugify(actor.name) === actorSlug)
     : null;
   const idActor = actorId ? actors.find((actor) => actor.id === actorId) : null;
+  const newsPost = newsSlug
+    ? newsPosts.find((post) => post.slug === newsSlug && post.status === "published")
+    : null;
 
   if (profileActor) {
     return {
@@ -183,6 +193,48 @@ function getRouteSeo(path: string, actors: Actor[]): SeoConfig {
       description: "Aktyor.az bazasına qoşulmaq üçün aktyor və aktrisa müraciət forması.",
       noindex: false,
       title: "Aktyor.az bazasına qoşul - Müraciət forması",
+    };
+  }
+
+  if (path === "/news") {
+    return {
+      canonical: `${SITE_URL}/news`,
+      description: "Aktyor.az aktyorlarının iştirak etdiyi kino, serial, reklam və yaradıcı layihələr haqqında xəbərlər.",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "Aktyor.az xəbərləri",
+        url: `${SITE_URL}/news`,
+      },
+      title: "Xəbərlər - Aktyorlarımızın kino və layihələri | Aktyor.az",
+    };
+  }
+
+  if (newsPost) {
+    return {
+      canonical: `${SITE_URL}/news/${newsPost.slug}`,
+      description: newsPost.seoDescription || newsPost.excerpt,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        headline: newsPost.title,
+        description: newsPost.seoDescription || newsPost.excerpt,
+        datePublished: newsPost.publishedAt || newsPost.createdAt,
+        dateModified: newsPost.updatedAt,
+        image: newsPost.coverImage ? [newsPost.coverImage] : [`${SITE_URL}/og/default.svg`],
+        mainEntityOfPage: `${SITE_URL}/news/${newsPost.slug}`,
+        publisher: {
+          "@type": "Organization",
+          name: "Azərbaycan Aktyor və Aktrisa Bazası",
+          logo: {
+            "@type": "ImageObject",
+            url: `${SITE_URL}/favicon.svg`,
+          },
+        },
+      },
+      ogImage: newsPost.coverImage || `${SITE_URL}/og/default.svg`,
+      title: newsPost.seoTitle || `${newsPost.title} | Aktyor.az xəbərləri`,
+      type: "article",
     };
   }
 
@@ -319,6 +371,33 @@ const emptyForm: ActorForm = {
   paymentManualConfirmed: false,
   paymentProvider: "manual",
   paymentReference: "",
+};
+
+type NewsForm = {
+  id?: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  projectName: string;
+  coverImage: string;
+  status: NewsPost["status"];
+  publishedAt: string;
+  seoTitle: string;
+  seoDescription: string;
+};
+
+const emptyNewsForm: NewsForm = {
+  title: "",
+  slug: "",
+  excerpt: "",
+  content: "",
+  projectName: "",
+  coverImage: "",
+  status: "draft",
+  publishedAt: new Date().toISOString().slice(0, 10),
+  seoTitle: "",
+  seoDescription: "",
 };
 
 function readActors() {
@@ -517,6 +596,9 @@ function auditActionLabel(action: string) {
     ai_casting_feedback: "AI feedback verildi",
     ai_index_rebuild: "AI indeksi yeniləndi",
     application_status_update: "Müraciət statusu dəyişdi",
+    news_create: "Xəbər yaradıldı",
+    news_delete: "Xəbər silindi",
+    news_update: "Xəbər yeniləndi",
     rating_update: "Reytinq müdaxiləsi",
     reset_seed: "Demo baza sıfırlandı",
   };
@@ -860,6 +942,38 @@ function actorToForm(actor: Actor): ActorForm {
   };
 }
 
+function newsToForm(post: NewsPost): NewsForm {
+  return {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    content: post.content,
+    projectName: post.projectName ?? "",
+    coverImage: post.coverImage ?? "",
+    status: post.status,
+    publishedAt: post.publishedAt ?? "",
+    seoTitle: post.seoTitle ?? "",
+    seoDescription: post.seoDescription ?? "",
+  };
+}
+
+function formToNewsPost(form: NewsForm): NewsPostInput {
+  return {
+    id: form.id,
+    title: form.title.trim(),
+    slug: slugify(form.slug || form.title),
+    excerpt: form.excerpt.trim(),
+    content: form.content.trim(),
+    projectName: form.projectName.trim(),
+    coverImage: form.coverImage.trim() || undefined,
+    status: form.status,
+    publishedAt: form.publishedAt,
+    seoTitle: form.seoTitle.trim(),
+    seoDescription: form.seoDescription.trim(),
+  };
+}
+
 function Header() {
   const currentPath = window.location.pathname;
   const isActive = (href: string) =>
@@ -884,6 +998,9 @@ function Header() {
         </a>
         <a className={isActive("/shortlist") ? "nav-link active" : "nav-link"} href="/shortlist">
           Favoritlər
+        </a>
+        <a className={isActive("/news") ? "nav-link active" : "nav-link"} href="/news">
+          Xəbərlər
         </a>
         <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
           Bazaya qoşul
@@ -1373,6 +1490,108 @@ function ShortlistPage({
           </div>
         )}
       </section>
+    </main>
+  );
+}
+
+function formatNewsDate(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
+  return Number.isFinite(date.getTime()) ? date.toLocaleDateString("az-AZ") : value;
+}
+
+function NewsCover({ post }: { post: NewsPost }) {
+  if (post.coverImage) {
+    return <img src={post.coverImage} alt={post.title} />;
+  }
+
+  return (
+    <div className="news-cover-placeholder">
+      <span>AAAb</span>
+    </div>
+  );
+}
+
+function NewsListPage({ posts }: { posts: NewsPost[] }) {
+  return (
+    <main className="page-shell">
+      <Header />
+      <section className="section news-hero">
+        <p className="eyebrow">Xəbərlər</p>
+        <h1>Kino və layihələrdə aktyorlarımız.</h1>
+        <p className="lead">
+          Aktyor.az bazasından yönləndirilən aktyorların iştirak etdiyi kino, serial,
+          reklam və yaradıcı layihələr haqqında yeniliklər.
+        </p>
+      </section>
+      <section className="section">
+        {posts.length ? (
+          <div className="news-grid">
+            {posts.map((post) => (
+              <article className="news-card" key={post.id}>
+                <a className="news-card-cover" href={`/news/${post.slug}`}>
+                  <NewsCover post={post} />
+                </a>
+                <div className="news-card-body">
+                  <div className="news-meta-row">
+                    {post.projectName && <span>{post.projectName}</span>}
+                    {post.publishedAt && <time>{formatNewsDate(post.publishedAt)}</time>}
+                  </div>
+                  <h2>
+                    <a href={`/news/${post.slug}`}>{post.title}</a>
+                  </h2>
+                  <p>{post.excerpt}</p>
+                  <a className="text-link" href={`/news/${post.slug}`}>
+                    Xəbəri oxu
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2>Hələ xəbər paylaşılmayıb</h2>
+            <p>Kino və layihə xəbərləri admin paneldən yayımlandıqdan sonra burada görünəcək.</p>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function NewsDetailPage({ post }: { post: NewsPost }) {
+  const paragraphs = post.content
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return (
+    <main className="page-shell">
+      <Header />
+      <article className="news-detail">
+        <header className="news-detail-header">
+          <a className="text-link" href="/news">
+            Xəbərlərə qayıt
+          </a>
+          <div className="news-meta-row">
+            {post.projectName && <span>{post.projectName}</span>}
+            {post.publishedAt && <time>{formatNewsDate(post.publishedAt)}</time>}
+          </div>
+          <h1>{post.title}</h1>
+          <p className="lead">{post.excerpt}</p>
+        </header>
+        <div className="news-detail-cover">
+          <NewsCover post={post} />
+        </div>
+        <div className="news-content">
+          {paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      </article>
     </main>
   );
 }
@@ -2252,8 +2471,11 @@ function AdminPage({
   aiFeedback,
   aiIndexStatus,
   applications,
+  newsPosts,
   onApplicationStatusChange,
   onActorsChange,
+  onDeleteNewsPost,
+  onSaveNewsPost,
   onResetDemoData,
   session,
   onLogout,
@@ -2263,8 +2485,11 @@ function AdminPage({
   aiFeedback: AiCastingFeedback[];
   aiIndexStatus: AiIndexStatus | null;
   applications: ActorApplication[];
+  newsPosts: NewsPost[];
   onApplicationStatusChange: (id: number, status: ActorApplication["status"]) => Promise<void>;
   onActorsChange: (actors: Actor[]) => Promise<void>;
+  onDeleteNewsPost: (id: number) => Promise<void>;
+  onSaveNewsPost: (post: NewsPostInput) => Promise<void>;
   onResetDemoData: () => Promise<void>;
   session: AdminSession;
   onLogout: () => void;
@@ -2277,6 +2502,8 @@ function AdminPage({
   const [localAiIndexStatus, setLocalAiIndexStatus] = useState<AiIndexStatus | null>(aiIndexStatus);
   const [adminActorQuery, setAdminActorQuery] = useState("");
   const [adminActorPage, setAdminActorPage] = useState(1);
+  const [newsForm, setNewsForm] = useState<NewsForm>(emptyNewsForm);
+  const [newsMessage, setNewsMessage] = useState("");
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
     [actors, editingId],
@@ -2319,6 +2546,48 @@ function AdminPage({
   function resetForm() {
     setEditingId(null);
     setForm(emptyForm);
+  }
+
+  function updateNewsForm(name: keyof NewsForm, value: string) {
+    setNewsForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "title" && !current.slug ? { slug: slugify(value) } : {}),
+    }));
+  }
+
+  function resetNewsForm() {
+    setNewsForm(emptyNewsForm);
+    setNewsMessage("");
+  }
+
+  async function submitNews(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNewsMessage("Xəbər saxlanılır...");
+
+    try {
+      await onSaveNewsPost(formToNewsPost(newsForm));
+      resetNewsForm();
+      setNewsMessage("Xəbər saxlanıldı.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "naməlum xəta";
+      setNewsMessage(`Xəbər saxlanmadı: ${message}`);
+    }
+  }
+
+  function editNews(post: NewsPost) {
+    setNewsForm(newsToForm(post));
+    setNewsMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function removeNews(id: number) {
+    setNewsMessage("Xəbər silinir...");
+    await onDeleteNewsPost(id);
+    if (newsForm.id === id) {
+      resetNewsForm();
+    }
+    setNewsMessage("Xəbər silindi.");
   }
 
   async function submitActor(event: FormEvent<HTMLFormElement>) {
@@ -2416,6 +2685,25 @@ function AdminPage({
       setUploadError(error instanceof Error ? error.message : "Qalereya fotosu yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
     } finally {
       setIsUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  async function handleNewsCover(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setNewsMessage("Xəbər şəkli yüklənir...");
+
+    try {
+      const photoUrl = await uploadActorPhoto(file, session.token);
+      updateNewsForm("coverImage", photoUrl);
+      setNewsMessage("Xəbər şəkli yükləndi.");
+    } catch (error) {
+      setNewsMessage(error instanceof Error ? error.message : "Xəbər şəkli yüklənmədi.");
+    } finally {
       event.target.value = "";
     }
   }
@@ -3087,6 +3375,161 @@ function AdminPage({
         </form>
       </section>
 
+      <section className="section admin-news-section">
+        <div className="admin-toolbar">
+          <div>
+            <h2>Xəbərlər</h2>
+            <p>Aktyorlarımızı yönləndirdiyimiz kino, serial, reklam və layihələr barədə paylaşım et.</p>
+          </div>
+          <a className="text-link" href="/news">
+            Public bax
+          </a>
+        </div>
+        <form className="admin-form news-admin-form" onSubmit={submitNews}>
+          <div className="form-header">
+            <h2>{newsForm.id ? "Xəbər redaktə olunur" : "Yeni xəbər"}</h2>
+            <button className="button secondary" onClick={resetNewsForm} type="button">
+              Təmizlə
+            </button>
+          </div>
+          <div className="form-grid">
+            <label>
+              Başlıq
+              <input
+                onChange={(event) => updateNewsForm("title", event.target.value)}
+                required
+                value={newsForm.title}
+              />
+            </label>
+            <label>
+              Slug
+              <input
+                onChange={(event) => updateNewsForm("slug", slugify(event.target.value))}
+                placeholder="layihe-xeberi"
+                required
+                value={newsForm.slug}
+              />
+            </label>
+            <label>
+              Layihə adı
+              <input
+                onChange={(event) => updateNewsForm("projectName", event.target.value)}
+                placeholder="Film, serial və ya layihə adı"
+                value={newsForm.projectName}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                onChange={(event) => updateNewsForm("status", event.target.value as NewsPost["status"])}
+                value={newsForm.status}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Yayımda</option>
+              </select>
+            </label>
+            <label>
+              Yayım tarixi
+              <input
+                onChange={(event) => updateNewsForm("publishedAt", event.target.value)}
+                type="date"
+                value={newsForm.publishedAt}
+              />
+            </label>
+            <label>
+              Cover foto
+              <input accept="image/jpeg,image/png,image/webp" onChange={handleNewsCover} type="file" />
+            </label>
+          </div>
+          <label>
+            Qısa giriş
+            <textarea
+              onChange={(event) => updateNewsForm("excerpt", event.target.value)}
+              required
+              rows={3}
+              value={newsForm.excerpt}
+            />
+          </label>
+          <label>
+            Xəbər mətni
+            <textarea
+              onChange={(event) => updateNewsForm("content", event.target.value)}
+              required
+              rows={8}
+              value={newsForm.content}
+            />
+          </label>
+          <div className="form-grid">
+            <label>
+              SEO başlıq
+              <input
+                onChange={(event) => updateNewsForm("seoTitle", event.target.value)}
+                placeholder="Google üçün başlıq"
+                value={newsForm.seoTitle}
+              />
+            </label>
+            <label>
+              SEO açıqlama
+              <input
+                onChange={(event) => updateNewsForm("seoDescription", event.target.value)}
+                placeholder="Google nəticəsində görünəcək qısa mətn"
+                value={newsForm.seoDescription}
+              />
+            </label>
+          </div>
+          {newsForm.coverImage && (
+            <div className="photo-preview">
+              <img alt="Xəbər cover" src={newsForm.coverImage} />
+              <button className="button secondary" onClick={() => updateNewsForm("coverImage", "")} type="button">
+                Şəkli sil
+              </button>
+            </div>
+          )}
+          {newsMessage && <div className="upload-state">{newsMessage}</div>}
+          <button className="button" type="submit">
+            {newsForm.id ? "Xəbəri yadda saxla" : "Xəbər əlavə et"}
+          </button>
+        </form>
+        <div className="admin-table news-admin-list">
+          {newsPosts.length ? (
+            newsPosts.map((post) => (
+              <div className="admin-row" key={post.id}>
+                <NewsCover post={post} />
+                <div>
+                  <h3>{post.title}</h3>
+                  <p>{post.excerpt}</p>
+                  <div className="badge-row">
+                    <span className={post.status === "published" ? "badge success" : "badge warning"}>
+                      {post.status === "published" ? "Yayımda" : "Draft"}
+                    </span>
+                    {post.projectName && <span className="badge">{post.projectName}</span>}
+                    {post.publishedAt && <span className="badge">{formatNewsDate(post.publishedAt)}</span>}
+                    {post.status === "published" && (
+                      <a className="text-link" href={`/news/${post.slug}`}>
+                        Aç
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="row-actions">
+                  <button className="button secondary" onClick={() => editNews(post)} type="button">
+                    Redaktə
+                  </button>
+                  <button className="button danger" onClick={() => removeNews(post.id)} type="button">
+                    Sil
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h2>Xəbər yoxdur</h2>
+              <p>İlk layihə xəbərini yuxarıdakı formadan əlavə et.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="section">
         <div className="admin-toolbar">
           <h2>Müraciətlər</h2>
@@ -3457,8 +3900,20 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [aiFeedback, setAiFeedback] = useState<AiCastingFeedback[]>([]);
   const [aiIndexStatus, setAiIndexStatus] = useState<AiIndexStatus | null>(null);
+  const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
   const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">("loading");
   const path = window.location.pathname;
+
+  useEffect(() => {
+    fetchNewsFromApi()
+      .then((posts) => {
+        setNewsPosts(posts);
+        setApiStatus("online");
+      })
+      .catch(() => {
+        setApiStatus("offline");
+      });
+  }, []);
 
   useEffect(() => {
     fetchActorsFromApi()
@@ -3473,8 +3928,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setSeo(getRouteSeo(path, actors));
-  }, [actors, path]);
+    setSeo(getRouteSeo(path, actors, newsPosts));
+  }, [actors, newsPosts, path]);
 
   useEffect(() => {
     if (!adminSession) {
@@ -3489,12 +3944,13 @@ function App() {
     const adminToken = adminSession.token;
 
     async function loadAdminData() {
-      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus] =
+      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus, nextNewsPosts] =
         await Promise.allSettled([
           fetchApplications(adminToken),
           fetchAuditLogs(adminToken),
           fetchAiCastingFeedback(adminToken),
           fetchAiIndexStatus(adminToken),
+          fetchAdminNews(adminToken),
         ]);
 
       if (!isActive) {
@@ -3518,6 +3974,10 @@ function App() {
 
       if (nextAiIndexStatus.status === "fulfilled") {
         setAiIndexStatus(nextAiIndexStatus.value);
+      }
+
+      if (nextNewsPosts.status === "fulfilled") {
+        setNewsPosts(nextNewsPosts.value);
       }
     }
 
@@ -3586,6 +4046,36 @@ function App() {
     );
     setAuditLogs(await fetchAuditLogs(adminSession.token));
     setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
+  }
+
+  async function saveNewsPost(post: NewsPostInput) {
+    if (!adminSession) {
+      return;
+    }
+
+    await saveAdminNewsPost(post, adminSession.token);
+    const [nextNewsPosts, nextAuditLogs] = await Promise.all([
+      fetchAdminNews(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setNewsPosts(nextNewsPosts);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
+  async function deleteNewsPost(id: number) {
+    if (!adminSession) {
+      return;
+    }
+
+    await deleteAdminNewsPost(id, adminSession.token);
+    const [nextNewsPosts, nextAuditLogs] = await Promise.all([
+      fetchAdminNews(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setNewsPosts(nextNewsPosts);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
   }
 
   async function rateActor(actorId: string, rating: number) {
@@ -3665,6 +4155,16 @@ function App() {
     );
   }
 
+  if (path === "/news") {
+    return <NewsListPage posts={newsPosts.filter((post) => post.status === "published")} />;
+  }
+
+  if (path.startsWith("/news/")) {
+    const slug = decodeURIComponent(path.replace("/news/", ""));
+    const post = newsPosts.find((item) => item.slug === slug && item.status === "published");
+    return post ? <NewsDetailPage post={post} /> : <NotFoundPage />;
+  }
+
   if (path === "/apply") {
     return <ApplyPage />;
   }
@@ -3700,10 +4200,13 @@ function App() {
         auditLogs={auditLogs}
         aiIndexStatus={aiIndexStatus}
         actors={actors}
+        newsPosts={newsPosts}
         onApplicationStatusChange={changeApplicationStatus}
+        onDeleteNewsPost={deleteNewsPost}
         onLogout={handleAdminLogout}
         onActorsChange={updateActors}
         onResetDemoData={resetDemoData}
+        onSaveNewsPost={saveNewsPost}
         session={adminSession}
       />
     );

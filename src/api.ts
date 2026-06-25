@@ -118,9 +118,39 @@ export type AiIndexStatus = {
   indexedCount: number;
 };
 
+export type NewsPost = {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  projectName?: string;
+  coverImage?: string;
+  status: "draft" | "published";
+  publishedAt?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NewsPostInput = Omit<NewsPost, "createdAt" | "id" | "updatedAt"> & {
+  id?: number;
+};
+
 export async function fetchActorsFromApi() {
   const data = await request<{ actors: Actor[] }>("/actors");
   return data.actors;
+}
+
+export async function fetchNewsFromApi() {
+  const data = await request<{ posts: NewsPost[] }>("/news");
+  return data.posts;
+}
+
+export async function fetchNewsPostFromApi(slug: string) {
+  const data = await request<{ post: NewsPost }>(`/news/${encodeURIComponent(slug)}`);
+  return data.post;
 }
 
 export async function castingSearch(prompt: string, limit = 6) {
@@ -161,6 +191,30 @@ export async function fetchAuditLogs(token?: string) {
     headers: authHeaders(token),
   });
   return data.logs;
+}
+
+export async function fetchAdminNews(token?: string) {
+  const data = await request<{ posts: NewsPost[] }>("/admin/news", {
+    headers: authHeaders(token),
+  });
+  return data.posts;
+}
+
+export async function saveAdminNewsPost(post: NewsPostInput, token?: string) {
+  const path = post.id ? `/admin/news/${post.id}` : "/admin/news";
+  const data = await request<{ post: NewsPost }>(path, {
+    body: JSON.stringify({ post }),
+    headers: authHeaders(token),
+    method: post.id ? "PUT" : "POST",
+  });
+  return data.post;
+}
+
+export async function deleteAdminNewsPost(id: number, token?: string) {
+  return request<{ deleted: boolean }>(`/admin/news/${id}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
 }
 
 export async function fetchAiIndexStatus(token?: string) {

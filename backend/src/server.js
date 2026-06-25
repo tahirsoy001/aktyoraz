@@ -17,6 +17,7 @@ import {
   createApplication,
   db,
   deleteActor,
+  deleteNewsPost,
   getAdminByEmail,
   getAdminById,
   getApplications,
@@ -26,7 +27,10 @@ import {
   getActorEmbedding,
   getActors,
   getEmbeddingStats,
+  getNewsPostBySlug,
+  getNewsPosts,
   resetSeed,
+  saveNewsPost,
   saveActor,
   saveActorEmbedding,
   seedIfEmpty,
@@ -434,6 +438,44 @@ function normalizeText(value) {
     .replace(/ş/g, "s")
     .replace(/ö/g, "o")
     .replace(/ç/g, "c");
+}
+
+function slugify(value) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+}
+
+function normalizeNewsPostPayload(payload) {
+  const title = String(payload?.title ?? "").trim();
+  const slug = slugify(payload?.slug || title);
+  const excerpt = String(payload?.excerpt ?? "").trim();
+  const content = String(payload?.content ?? "").trim();
+  const status = payload?.status === "published" ? "published" : "draft";
+  const publishedAt = String(payload?.publishedAt ?? "").trim() || (status === "published" ? new Date().toISOString().slice(0, 10) : "");
+
+  return {
+    id: payload?.id ? Number(payload.id) : undefined,
+    slug,
+    title,
+    excerpt,
+    content,
+    projectName: String(payload?.projectName ?? "").trim(),
+    coverImage: String(payload?.coverImage ?? "").trim() || undefined,
+    status,
+    publishedAt,
+    seoTitle: String(payload?.seoTitle ?? "").trim(),
+    seoDescription: String(payload?.seoDescription ?? "").trim(),
+  };
+}
+
+function validateNewsPost(post) {
+  if (!post.title || !post.slug || !post.excerpt || !post.content) {
+    return "title, slug, excerpt and content are required";
+  }
+
+  return "";
 }
 
 function hasAny(text, words) {
@@ -1075,6 +1117,7 @@ app.get("/sitemap.xml", (_request, response) => {
   const staticUrls = [
     sitemapUrl("/", "1.0"),
     sitemapUrl("/actors", "0.9"),
+    sitemapUrl("/news", "0.8"),
     sitemapUrl("/apply", "0.7"),
     sitemapUrl("/casting-ai", "0.7"),
   ];
@@ -1082,9 +1125,16 @@ app.get("/sitemap.xml", (_request, response) => {
     sitemapUrl(`/actors/${encodeURIComponent(actor.slug)}`, "0.8"),
     sitemapUrl(`/id/${encodeURIComponent(actor.id)}`, "0.6"),
   ]);
+  const newsUrls = getNewsPosts().map((post) =>
+    sitemapUrl(
+      `/news/${encodeURIComponent(post.slug)}`,
+      "0.8",
+      post.publishedAt || post.updatedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    ),
+  );
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${[...staticUrls, ...actorUrls].join("\n")}
+${[...staticUrls, ...actorUrls, ...newsUrls].join("\n")}
 </urlset>
 `;
 
@@ -1093,6 +1143,21 @@ ${[...staticUrls, ...actorUrls].join("\n")}
 
 app.get("/api/actors", (_request, response) => {
   response.json({ actors: getActors() });
+});
+
+app.get("/api/news", (_request, response) => {
+  response.json({ posts: getNewsPosts() });
+});
+
+app.get("/api/news/:slug", (request, response) => {
+  const post = getNewsPostBySlug(request.params.slug);
+
+  if (!post) {
+    response.status(404).json({ error: "news post not found" });
+    return;
+  }
+
+  response.json({ post });
 });
 
 app.get("/api/health", (_request, response) => {
@@ -1232,6 +1297,65 @@ app.get("/api/admin/applications", requireAdmin, (_request, response) => {
 
 app.get("/api/admin/audit-logs", requireAdmin, (_request, response) => {
   response.json({ logs: getAuditLogs() });
+});
+
+app.get("/api/admin/news", requireAdmin, (_request, response) => {
+  response.json({ posts: getNewsPosts({ includeDrafts: true }) });
+});
+
+app.post("/api/admin/news", requireAdmin, (request, response) => {
+  const post = normalizeNewsPostPayload(request.body?.post);
+  const validationError = validateNewsPost(post);
+
+  if (validationError) {
+    response.status(400).json({ error: validationError });
+    return;
+  }
+
+  const savedPost = saveNewsPost(post);
+  createAuditLog({
+    action: "news_create",
+    adminEmail: request.admin.email,
+    details: { status: savedPost.status, title: savedPost.title },
+    entityId: String(savedPost.id),
+    entityType: "news",
+  });
+  response.status(201).json({ post: savedPost });
+});
+
+app.put("/api/admin/news/:id", requireAdmin, (request, response) => {
+  const post = normalizeNewsPostPayload({
+    ...request.body?.post,
+    id: Number(request.params.id),
+  });
+  const validationError = validateNewsPost(post);
+
+  if (validationError) {
+    response.status(400).json({ error: validationError });
+    return;
+  }
+
+  const savedPost = saveNewsPost(post);
+  createAuditLog({
+    action: "news_update",
+    adminEmail: request.admin.email,
+    details: { status: savedPost.status, title: savedPost.title },
+    entityId: String(savedPost.id),
+    entityType: "news",
+  });
+  response.json({ post: savedPost });
+});
+
+app.delete("/api/admin/news/:id", requireAdmin, (request, response) => {
+  const result = deleteNewsPost(Number(request.params.id));
+  createAuditLog({
+    action: "news_delete",
+    adminEmail: request.admin.email,
+    details: {},
+    entityId: request.params.id,
+    entityType: "news",
+  });
+  response.json({ deleted: result.changes > 0 });
 });
 
 app.get("/api/admin/ai-feedback", requireAdmin, (_request, response) => {

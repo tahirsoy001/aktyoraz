@@ -133,6 +133,22 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(actor_id) REFERENCES actors(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS news_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    excerpt TEXT NOT NULL,
+    content TEXT NOT NULL,
+    project_name TEXT NOT NULL DEFAULT '',
+    cover_image TEXT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+    published_at TEXT NOT NULL DEFAULT '',
+    seo_title TEXT NOT NULL DEFAULT '',
+    seo_description TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 for (const statement of [
@@ -162,6 +178,9 @@ for (const statement of [
   "ALTER TABLE actors ADD COLUMN payment_reference TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE actors ADD COLUMN ai_bio TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE actors ADD COLUMN ai_profile TEXT NOT NULL DEFAULT '{}'",
+  "ALTER TABLE news_posts ADD COLUMN project_name TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE news_posts ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE news_posts ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''",
 ]) {
   try {
     db.prepare(statement).run();
@@ -687,4 +706,93 @@ function fromDbAiCastingFeedback(row) {
     prompt: row.prompt,
     promptAnalysis: JSON.parse(row.prompt_analysis ?? "{}"),
   };
+}
+
+function fromDbNewsPost(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    content: row.content,
+    projectName: row.project_name ?? "",
+    coverImage: row.cover_image ?? undefined,
+    status: row.status,
+    publishedAt: row.published_at ?? "",
+    seoTitle: row.seo_title ?? "",
+    seoDescription: row.seo_description ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function getNewsPosts({ includeDrafts = false } = {}) {
+  const rows = includeDrafts
+    ? db.prepare("SELECT * FROM news_posts ORDER BY COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC").all()
+    : db
+        .prepare(
+          "SELECT * FROM news_posts WHERE status = 'published' ORDER BY COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC",
+        )
+        .all();
+
+  return rows.map(fromDbNewsPost);
+}
+
+export function getNewsPostBySlug(slug, { includeDrafts = false } = {}) {
+  const row = includeDrafts
+    ? db.prepare("SELECT * FROM news_posts WHERE slug = ?").get(slug)
+    : db.prepare("SELECT * FROM news_posts WHERE slug = ? AND status = 'published'").get(slug);
+
+  return row ? fromDbNewsPost(row) : null;
+}
+
+export function getNewsPostById(id) {
+  const row = db.prepare("SELECT * FROM news_posts WHERE id = ?").get(id);
+  return row ? fromDbNewsPost(row) : null;
+}
+
+export function saveNewsPost(post) {
+  const payload = {
+    id: post.id ?? null,
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    content: post.content,
+    projectName: post.projectName ?? "",
+    coverImage: post.coverImage ?? null,
+    status: post.status === "published" ? "published" : "draft",
+    publishedAt: post.publishedAt ?? "",
+    seoTitle: post.seoTitle ?? "",
+    seoDescription: post.seoDescription ?? "",
+  };
+
+  const result = db
+    .prepare(
+      `INSERT INTO news_posts (
+        id, slug, title, excerpt, content, project_name, cover_image, status, published_at,
+        seo_title, seo_description, updated_at
+      ) VALUES (
+        @id, @slug, @title, @excerpt, @content, @projectName, @coverImage, @status, @publishedAt,
+        @seoTitle, @seoDescription, CURRENT_TIMESTAMP
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        slug = excluded.slug,
+        title = excluded.title,
+        excerpt = excluded.excerpt,
+        content = excluded.content,
+        project_name = excluded.project_name,
+        cover_image = excluded.cover_image,
+        status = excluded.status,
+        published_at = excluded.published_at,
+        seo_title = excluded.seo_title,
+        seo_description = excluded.seo_description,
+        updated_at = CURRENT_TIMESTAMP`,
+    )
+    .run(payload);
+
+  return getNewsPostById(post.id ?? result.lastInsertRowid);
+}
+
+export function deleteNewsPost(id) {
+  return db.prepare("DELETE FROM news_posts WHERE id = ?").run(id);
 }
