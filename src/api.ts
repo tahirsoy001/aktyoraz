@@ -268,6 +268,13 @@ export async function updateApplicationStatus(
   return data.application;
 }
 
+export async function deleteApplication(id: number, token?: string) {
+  return request<{ deleted: boolean }>(`/admin/applications/${id}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
+}
+
 export async function replaceActorsInApi(actors: Actor[], token?: string) {
   const data = await request<{ actors: Actor[] }>("/actors", {
     body: JSON.stringify({ actors }),

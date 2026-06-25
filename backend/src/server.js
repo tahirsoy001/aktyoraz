@@ -17,6 +17,7 @@ import {
   createApplication,
   db,
   deleteActor,
+  deleteApplication,
   deleteNewsPost,
   getAdminByEmail,
   getAdminById,
@@ -1502,6 +1503,25 @@ app.patch("/api/admin/applications/:id", requireAdmin, (request, response) => {
   });
 
   response.json({ application });
+});
+
+app.delete("/api/admin/applications/:id", requireAdmin, (request, response) => {
+  const id = Number(request.params.id);
+  const deleted = deleteApplication(id);
+
+  if (!deleted) {
+    response.status(404).json({ error: "application not found" });
+    return;
+  }
+
+  createAuditLog({
+    action: "application_delete",
+    adminEmail: request.admin.email,
+    entityId: String(id),
+    entityType: "application",
+  });
+
+  response.json({ deleted: true });
 });
 
 app.post("/api/admin/uploads/photo", requireAdmin, upload.single("photo"), (request, response) => {

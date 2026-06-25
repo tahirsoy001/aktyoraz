@@ -11,6 +11,7 @@ import {
   createAiCastingFeedback,
   castingSearch,
   createActorApplication,
+  deleteApplication,
   deleteAdminNewsPost,
   fetchAiCastingFeedback,
   fetchActorsFromApi,
@@ -600,6 +601,7 @@ function auditActionLabel(action: string) {
     actor_visibility_update: "Kart/üzvlük/status yeniləndi",
     ai_casting_feedback: "AI feedback verildi",
     ai_index_rebuild: "AI indeksi yeniləndi",
+    application_delete: "Müraciət silindi",
     application_status_update: "Müraciət statusu dəyişdi",
     news_create: "Xəbər yaradıldı",
     news_delete: "Xəbər silindi",
@@ -2477,6 +2479,7 @@ function AdminPage({
   aiIndexStatus,
   applications,
   newsPosts,
+  onApplicationDelete,
   onApplicationStatusChange,
   onActorsChange,
   onDeleteNewsPost,
@@ -2491,6 +2494,7 @@ function AdminPage({
   aiIndexStatus: AiIndexStatus | null;
   applications: ActorApplication[];
   newsPosts: NewsPost[];
+  onApplicationDelete: (id: number) => Promise<void>;
   onApplicationStatusChange: (id: number, status: ActorApplication["status"]) => Promise<void>;
   onActorsChange: (actors: Actor[]) => Promise<void>;
   onDeleteNewsPost: (id: number) => Promise<void>;
@@ -2769,7 +2773,7 @@ function AdminPage({
     const savedActor = duplicateSlug ? { ...nextActor, slug: `${nextActor.slug}-${nextActor.id.toLowerCase()}` } : nextActor;
 
     await onActorsChange([savedActor, ...actors]);
-    await onApplicationStatusChange(application.id, "approved");
+    await onApplicationDelete(application.id);
     editActor(savedActor);
   }
 
@@ -3612,6 +3616,13 @@ function AdminPage({
                     <option value="approved">Təsdiqləndi</option>
                     <option value="rejected">Rədd edildi</option>
                   </select>
+                  <button
+                    className="button danger"
+                    onClick={() => onApplicationDelete(application.id)}
+                    type="button"
+                  >
+                    Sil
+                  </button>
                 </div>
               </div>
             ))
@@ -4053,6 +4064,17 @@ function App() {
     setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
   }
 
+  async function removeApplication(id: number) {
+    if (!adminSession) {
+      return;
+    }
+
+    await deleteApplication(id, adminSession.token);
+    setApplications((current) => current.filter((application) => application.id !== id));
+    setAuditLogs(await fetchAuditLogs(adminSession.token));
+    setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
+  }
+
   async function saveNewsPost(post: NewsPostInput) {
     if (!adminSession) {
       return;
@@ -4206,6 +4228,7 @@ function App() {
         aiIndexStatus={aiIndexStatus}
         actors={actors}
         newsPosts={newsPosts}
+        onApplicationDelete={removeApplication}
         onApplicationStatusChange={changeApplicationStatus}
         onDeleteNewsPost={deleteNewsPost}
         onLogout={handleAdminLogout}

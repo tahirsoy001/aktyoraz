@@ -598,6 +598,17 @@ export function updateApplicationStatus(id, status) {
   return getApplicationById(id);
 }
 
+export function deleteApplication(id) {
+  const application = getApplicationById(id);
+
+  if (!application) {
+    return false;
+  }
+
+  db.prepare("DELETE FROM applications WHERE id = ?").run(id);
+  return true;
+}
+
 export function createAuditLog({ adminEmail, action, entityType, entityId, details = {} }) {
   db.prepare(
     `INSERT INTO audit_logs (admin_email, action, entity_type, entity_id, details)
