@@ -98,11 +98,11 @@ function setSeo(config: SeoConfig) {
   upsertMeta('meta[property="og:url"]', { content: config.canonical, property: "og:url" });
   upsertMeta('meta[property="og:site_name"]', { content: "Aktyor.az", property: "og:site_name" });
   upsertMeta('meta[property="og:image"]', {
-    content: config.ogImage ?? `${SITE_URL}/og/default.svg`,
+    content: config.ogImage ?? `${SITE_URL}/og-default.png`,
     property: "og:image",
   });
   upsertMeta('meta[name="twitter:image"]', {
-    content: config.ogImage ?? `${SITE_URL}/og/default.svg`,
+    content: config.ogImage ?? `${SITE_URL}/og-default.png`,
     name: "twitter:image",
   });
   upsertMeta('meta[name="twitter:card"]', { content: "summary_large_image", name: "twitter:card" });
@@ -182,7 +182,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
         name: "Aktyor.az aktyor kataloqu",
         url: `${SITE_URL}/actors`,
       },
-      ogImage: `${SITE_URL}/og/default.svg`,
+      ogImage: `${SITE_URL}/og-default.png`,
       title: "Aktyor kataloqu və kastinq filterləri | Aktyor.az",
     };
   }
@@ -221,7 +221,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
         description: newsPost.seoDescription || newsPost.excerpt,
         datePublished: newsPost.publishedAt || newsPost.createdAt,
         dateModified: newsPost.updatedAt,
-        image: newsPost.coverImage ? [newsPost.coverImage] : [`${SITE_URL}/og/default.svg`],
+        image: newsPost.coverImage ? [newsPost.coverImage] : [`${SITE_URL}/og-default.png`],
         mainEntityOfPage: `${SITE_URL}/news/${newsPost.slug}`,
         publisher: {
           "@type": "Organization",
@@ -232,7 +232,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
           },
         },
       },
-      ogImage: newsPost.coverImage || `${SITE_URL}/og/default.svg`,
+      ogImage: newsPost.coverImage || `${SITE_URL}/og-default.png`,
       title: newsPost.seoTitle || `${newsPost.title} | Aktyor.az xəbərləri`,
       type: "article",
     };
@@ -275,7 +275,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
         "query-input": "required name=search_term_string",
       },
     },
-    ogImage: `${SITE_URL}/og/default.svg`,
+    ogImage: `${SITE_URL}/og-default.png`,
     title: "Aktyor.az - Azərbaycan Aktyor və Aktrisa Bazası",
   };
 }

@@ -253,6 +253,28 @@ function xmlEscape(value) {
     .replace(/'/g, "&apos;");
 }
 
+function htmlEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function absoluteUrl(value) {
+  const text = String(value ?? "").trim();
+
+  if (!text) {
+    return `${publicBaseUrl}/og-default.png`;
+  }
+
+  if (text.startsWith("http://") || text.startsWith("https://")) {
+    return text;
+  }
+
+  return `${publicBaseUrl}${text.startsWith("/") ? text : `/${text}`}`;
+}
+
 function sitemapUrl(pathname, priority = "0.7", lastmod = new Date().toISOString().slice(0, 10)) {
   return `  <url>
     <loc>${xmlEscape(`${publicBaseUrl}${pathname}`)}</loc>
@@ -1699,6 +1721,117 @@ app.post("/api/admin/reset-seed", requireAdmin, (request, response) => {
     entityType: "system",
   });
   response.json({ actors: resetSeed() });
+});
+
+function getPageMeta(pathname) {
+  const defaultMeta = {
+    canonical: `${publicBaseUrl}${pathname === "/" ? "/" : pathname}`,
+    description: "Aktyor və aktrisalar üçün kataloq, kastinq profilləri, rəqəmsal ID, QR və PDF təsdiq kart sistemi.",
+    image: `${publicBaseUrl}/og-default.png`,
+    title: "Aktyor.az - Azərbaycan Aktyor və Aktrisa Bazası",
+    type: "website",
+  };
+
+  if (pathname.startsWith("/actors/")) {
+    const slug = decodeURIComponent(pathname.replace("/actors/", ""));
+    const actor = getActors().find((item) => item.slug === slug);
+
+    if (actor) {
+      return {
+        canonical: `${publicBaseUrl}/actors/${encodeURIComponent(actor.slug)}`,
+        description: `${actor.name} - ${actor.role}, ${actor.city}. Yaş aralığı: ${actor.ageRange}, boy: ${actor.height}. Aktyor.az profili və kastinq məlumatları.`,
+        image: absoluteUrl(actor.photo),
+        title: `${actor.name} - ${actor.role} | Aktyor.az`,
+        type: "profile",
+      };
+    }
+  }
+
+  if (pathname === "/news") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/news`,
+      description: "Aktyor.az aktyorlarının iştirak etdiyi kino, serial, reklam və yaradıcı layihələr haqqında xəbərlər.",
+      title: "Xəbərlər - Aktyorlarımızın kino və layihələri | Aktyor.az",
+      type: "website",
+    };
+  }
+
+  if (pathname.startsWith("/news/")) {
+    const slug = decodeURIComponent(pathname.replace("/news/", ""));
+    const post = getNewsPostBySlug(slug);
+
+    if (post) {
+      return {
+        canonical: `${publicBaseUrl}/news/${encodeURIComponent(post.slug)}`,
+        description: post.seoDescription || post.excerpt,
+        image: absoluteUrl(post.coverImage),
+        title: post.seoTitle || `${post.title} | Aktyor.az xəbərləri`,
+        type: "article",
+      };
+    }
+  }
+
+  if (pathname.startsWith("/id/")) {
+    const actorId = decodeURIComponent(pathname.replace("/id/", ""));
+    const actor = getActorById(actorId);
+
+    if (actor) {
+      return {
+        canonical: `${publicBaseUrl}/id/${encodeURIComponent(actor.id)}`,
+        description: `${actor.name} üçün Aktyor.az rəqəmsal ID və təsdiq səhifəsi.`,
+        image: absoluteUrl(actor.photo),
+        title: `${actor.name} rəqəmsal ID | Aktyor.az`,
+        type: "profile",
+      };
+    }
+  }
+
+  return defaultMeta;
+}
+
+function metaTags(meta) {
+  return [
+    `<title>${htmlEscape(meta.title)}</title>`,
+    `<meta name="description" content="${htmlEscape(meta.description)}" />`,
+    `<link rel="canonical" href="${htmlEscape(meta.canonical)}" />`,
+    `<meta property="og:type" content="${htmlEscape(meta.type)}" />`,
+    `<meta property="og:site_name" content="Aktyor.az" />`,
+    `<meta property="og:title" content="${htmlEscape(meta.title)}" />`,
+    `<meta property="og:description" content="${htmlEscape(meta.description)}" />`,
+    `<meta property="og:url" content="${htmlEscape(meta.canonical)}" />`,
+    `<meta property="og:image" content="${htmlEscape(meta.image)}" />`,
+    `<meta property="og:image:secure_url" content="${htmlEscape(meta.image)}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${htmlEscape(meta.title)}" />`,
+    `<meta name="twitter:description" content="${htmlEscape(meta.description)}" />`,
+    `<meta name="twitter:image" content="${htmlEscape(meta.image)}" />`,
+  ].join("\n    ");
+}
+
+function appShellHtml(pathname) {
+  const indexPath = path.resolve(__dirname, "../../dist/index.html");
+  const meta = getPageMeta(pathname);
+  const indexHtml = fs.existsSync(indexPath)
+    ? fs.readFileSync(indexPath, "utf8")
+    : `<!doctype html><html lang="az"><head><meta charset="UTF-8" /></head><body><div id="root"></div></body></html>`;
+
+  return indexHtml
+    .replace(/<title>[\s\S]*?<\/title>/, "")
+    .replace(/<meta name="description"[\s\S]*?>/g, "")
+    .replace(/<link rel="canonical"[\s\S]*?>/g, "")
+    .replace(/<meta property="og:[\s\S]*?>/g, "")
+    .replace(/<meta name="twitter:[\s\S]*?>/g, "")
+    .replace("</head>", `    ${metaTags(meta)}\n  </head>`);
+}
+
+app.get(["/", "/actors", "/actors/:slug", "/news", "/news/:slug", "/id/:id"], (request, response) => {
+  response
+    .type("html")
+    .set("Cache-Control", "public, max-age=60")
+    .send(appShellHtml(request.path));
 });
 
 app.use((error, _request, response, _next) => {
