@@ -2393,8 +2393,8 @@ function AdminPage({
     try {
       const photoUrl = await uploadActorPhoto(file, session.token);
       updateForm("photo", photoUrl);
-    } catch {
-      setUploadError("Foto yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Foto yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
     } finally {
       setIsUploading(false);
     }
@@ -2412,8 +2412,8 @@ function AdminPage({
     try {
       const photoUrl = await uploadActorPhoto(file, session.token);
       updateForm("gallery", [...form.gallery.split("\n").filter(Boolean), photoUrl].join("\n"));
-    } catch {
-      setUploadError("Qalereya fotosu yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Qalereya fotosu yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
     } finally {
       setIsUploading(false);
       event.target.value = "";

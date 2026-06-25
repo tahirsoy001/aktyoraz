@@ -251,6 +251,9 @@ export async function uploadActorPhoto(file: File, token?: string) {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Admin sessiyası bitib. Yenidən admin giriş edin və şəkli təkrar yükləyin.");
+    }
     throw new Error(body.error ?? `Upload error ${response.status}`);
   }
 
