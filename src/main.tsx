@@ -2548,6 +2548,7 @@ function AdminPage({
   const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
   const adminSections = [
     { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
+    { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
     { id: "news", label: "Xəbərlər", meta: `${newsPosts.length} xəbər` },
     { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
@@ -2647,12 +2648,19 @@ function AdminPage({
 
     await onActorsChange(nextActors);
     resetForm();
+    setActiveAdminSection("actors");
   }
 
   function editActor(actor: Actor) {
     setEditingId(actor.id);
     setForm(actorToForm(actor));
-    setActiveAdminSection("actors");
+    setActiveAdminSection("actorForm");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startNewActor() {
+    resetForm();
+    setActiveAdminSection("actorForm");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2826,7 +2834,7 @@ function AdminPage({
           </div>
         </aside>
         <div className="admin-content">
-      <section className={activeAdminSection === "dashboard" || activeAdminSection === "actors" ? "admin-layout" : "admin-layout admin-section-hidden"}>
+      <section className={activeAdminSection === "dashboard" || activeAdminSection === "actorForm" ? "admin-layout" : "admin-layout admin-section-hidden"}>
         <div className={activeAdminSection === "dashboard" ? "" : "admin-section-hidden"}>
           <p className="eyebrow">Admin panel</p>
           <h1>Profil idarəetməsi</h1>
@@ -2989,9 +2997,14 @@ function AdminPage({
           </div>
         </div>
 
-        <form className={activeAdminSection === "actors" ? "admin-form" : "admin-section-hidden"} onSubmit={submitActor}>
+        <form className={activeAdminSection === "actorForm" ? "admin-form" : "admin-section-hidden"} onSubmit={submitActor}>
           <div className="form-header">
-            <h2>{editingActor ? `${editingActor.name} redaktə olunur` : "Yeni aktyor"}</h2>
+            <div>
+              <h2>{editingActor ? `${editingActor.name} redaktə olunur` : "Yeni aktyor əlavə et"}</h2>
+              <p className="admin-section-note">
+                Profil məlumatları, foto, AI bio, kart və ödəniş sahələri burada idarə olunur.
+              </p>
+            </div>
             <button className="button secondary" onClick={resetForm} type="button">
               Təmizlə
             </button>
@@ -3683,7 +3696,10 @@ function AdminPage({
 
       <section className={activeAdminSection === "actors" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
-          <h2>Profillər</h2>
+          <div>
+            <h2>Aktyorlar</h2>
+            <p>Profil siyahısı, axtarış, status dəyişmə və redaktə keçidləri.</p>
+          </div>
           <div className="admin-toolbar-actions">
             <input
               aria-label="Admin aktyor axtarışı"
@@ -3706,6 +3722,9 @@ function AdminPage({
             </button>
             <button className="button secondary" onClick={resetDemoData} type="button">
               Demo datanı bərpa et
+            </button>
+            <button className="button" onClick={startNewActor} type="button">
+              Yeni aktyor əlavə et
             </button>
           </div>
         </div>
