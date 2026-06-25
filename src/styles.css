@@ -1879,6 +1879,89 @@ h1 {
   padding: 12px;
 }
 
+.admin-console {
+  align-items: start;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.admin-sidebar {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  padding: 16px;
+  position: sticky;
+  top: 120px;
+}
+
+.admin-sidebar h1 {
+  font-size: 26px;
+  margin: 4px 0 6px;
+}
+
+.admin-sidebar > div > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-side-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-side-nav button {
+  align-items: center;
+  background: #fbfbf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 56px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.admin-side-nav button.active {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+.admin-side-nav span {
+  font-weight: 900;
+}
+
+.admin-side-nav small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-side-nav button.active small {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.admin-sidebar-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-content {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+.admin-section-hidden {
+  display: none;
+}
+
 .admin-session-bar span {
   color: var(--muted);
   font-size: 14px;
@@ -2501,6 +2584,35 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .admin-console {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: static;
+  }
+
+  .admin-side-nav {
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .admin-side-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-side-nav button {
+    flex: 0 0 min(210px, 70vw);
+  }
+
+  .admin-sidebar-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .top-five-rail {
     grid-auto-columns: minmax(430px, 86vw);
   }
@@ -2743,6 +2855,24 @@ h1 {
   .profile-detail-grid,
   .mini-meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-console {
+    gap: 14px;
+  }
+
+  .admin-sidebar {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .admin-sidebar h1 {
+    font-size: 22px;
+  }
+
+  .admin-side-nav button {
+    flex-basis: 172px;
+    min-height: 52px;
   }
 
   .news-detail {

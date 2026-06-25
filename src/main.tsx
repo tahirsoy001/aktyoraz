@@ -2513,6 +2513,7 @@ function AdminPage({
   const [adminActorPage, setAdminActorPage] = useState(1);
   const [newsForm, setNewsForm] = useState<NewsForm>(emptyNewsForm);
   const [newsMessage, setNewsMessage] = useState("");
+  const [activeAdminSection, setActiveAdminSection] = useState("dashboard");
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
     [actors, editingId],
@@ -2543,6 +2544,16 @@ function AdminPage({
     (adminActorPage - 1) * adminPageSize,
     adminActorPage * adminPageSize,
   );
+  const cardPaymentLogCount = auditLogs.filter(isCardOrPaymentAudit).length;
+  const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
+  const adminSections = [
+    { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
+    { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
+    { id: "news", label: "Xəbərlər", meta: `${newsPosts.length} xəbər` },
+    { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
+    { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd` },
+    { id: "audit", label: "Audit log", meta: `${auditLogs.length} qeyd` },
+  ];
 
   useEffect(() => {
     setLocalAiIndexStatus(aiIndexStatus);
@@ -2587,6 +2598,7 @@ function AdminPage({
   function editNews(post: NewsPost) {
     setNewsForm(newsToForm(post));
     setNewsMessage("");
+    setActiveAdminSection("news");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2640,6 +2652,7 @@ function AdminPage({
   function editActor(actor: Actor) {
     setEditingId(actor.id);
     setForm(actorToForm(actor));
+    setActiveAdminSection("actors");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2780,8 +2793,41 @@ function AdminPage({
   return (
     <main className="page-shell">
       <Header />
-      <section className="admin-layout">
-        <div>
+      <section className="admin-console">
+        <aside className="admin-sidebar">
+          <div>
+            <p className="eyebrow">Admin panel</p>
+            <h1>İdarəetmə</h1>
+            <span>{session.admin.name}</span>
+          </div>
+          <nav className="admin-side-nav" aria-label="Admin bölmələri">
+            {adminSections.map((section) => (
+              <button
+                className={activeAdminSection === section.id ? "active" : ""}
+                key={section.id}
+                onClick={() => {
+                  setActiveAdminSection(section.id);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                type="button"
+              >
+                <span>{section.label}</span>
+                <small>{section.meta}</small>
+              </button>
+            ))}
+          </nav>
+          <div className="admin-sidebar-actions">
+            <a className="button secondary" href="/" target="_blank" rel="noreferrer">
+              Sayta bax
+            </a>
+            <button className="button danger" onClick={onLogout} type="button">
+              Çıxış
+            </button>
+          </div>
+        </aside>
+        <div className="admin-content">
+      <section className={activeAdminSection === "dashboard" || activeAdminSection === "actors" ? "admin-layout" : "admin-layout admin-section-hidden"}>
+        <div className={activeAdminSection === "dashboard" ? "" : "admin-section-hidden"}>
           <p className="eyebrow">Admin panel</p>
           <h1>Profil idarəetməsi</h1>
           <p className="lead">
@@ -2943,7 +2989,7 @@ function AdminPage({
           </div>
         </div>
 
-        <form className="admin-form" onSubmit={submitActor}>
+        <form className={activeAdminSection === "actors" ? "admin-form" : "admin-section-hidden"} onSubmit={submitActor}>
           <div className="form-header">
             <h2>{editingActor ? `${editingActor.name} redaktə olunur` : "Yeni aktyor"}</h2>
             <button className="button secondary" onClick={resetForm} type="button">
@@ -3384,7 +3430,7 @@ function AdminPage({
         </form>
       </section>
 
-      <section className="section admin-news-section">
+      <section className={activeAdminSection === "news" ? "section admin-news-section" : "section admin-news-section admin-section-hidden"}>
         <div className="admin-toolbar">
           <div>
             <h2>Xəbərlər</h2>
@@ -3539,7 +3585,7 @@ function AdminPage({
         </div>
       </section>
 
-      <section className="section">
+      <section className={activeAdminSection === "applications" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Müraciətlər</h2>
           <span>{applications.length} müraciət</span>
@@ -3635,7 +3681,7 @@ function AdminPage({
         </div>
       </section>
 
-      <section className="section">
+      <section className={activeAdminSection === "actors" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Profillər</h2>
           <div className="admin-toolbar-actions">
@@ -3808,13 +3854,13 @@ function AdminPage({
         )}
       </section>
 
-      <section className="section">
+      <section className={activeAdminSection === "payments" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Kart və ödəniş tarixçəsi</h2>
-          <span>{auditLogs.filter(isCardOrPaymentAudit).length} qeyd</span>
+          <span>{cardPaymentLogCount} qeyd</span>
         </div>
         <div className="admin-table audit-table">
-          {auditLogs.filter(isCardOrPaymentAudit).length ? (
+          {cardPaymentLogCount ? (
             auditLogs.filter(isCardOrPaymentAudit).map((log) => (
               <div className="audit-row readable" key={log.id}>
                 <div>
@@ -3834,7 +3880,7 @@ function AdminPage({
         </div>
       </section>
 
-      <section className="section">
+      <section className={activeAdminSection === "audit" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Audit log</h2>
           <span>{auditLogs.length} qeyd</span>
@@ -3862,13 +3908,13 @@ function AdminPage({
         </div>
       </section>
 
-      <section className="section">
+      <section className={activeAdminSection === "audit" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Reytinq müdaxiləsi tarixçəsi</h2>
-          <span>{auditLogs.filter((log) => log.action === "rating_update").length} qeyd</span>
+          <span>{ratingAuditCount} qeyd</span>
         </div>
         <div className="admin-table audit-table">
-          {auditLogs.filter((log) => log.action === "rating_update").length ? (
+          {ratingAuditCount ? (
             auditLogs
               .filter((log) => log.action === "rating_update")
               .map((log) => (
@@ -3886,6 +3932,8 @@ function AdminPage({
               <p>Real reytinq, səs sayı və admin boost dəyişəndə burada qeyd yaranacaq.</p>
             </div>
           )}
+        </div>
+      </section>
         </div>
       </section>
     </main>
