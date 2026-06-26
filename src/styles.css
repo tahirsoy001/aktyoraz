@@ -2135,6 +2135,55 @@ h1 {
   opacity: 0.45;
 }
 
+.media-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.media-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  overflow: hidden;
+}
+
+.media-thumb {
+  aspect-ratio: 4 / 3;
+  background: #111827;
+  display: block;
+}
+
+.media-thumb img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.media-card-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.media-card-body strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-card-body p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.row-actions.compact {
+  align-items: stretch;
+  grid-template-columns: 1fr 1fr;
+}
+
 .form-header h2,
 .admin-toolbar h2 {
   font-size: 18px;

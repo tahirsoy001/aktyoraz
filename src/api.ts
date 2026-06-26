@@ -138,6 +138,15 @@ export type NewsPostInput = Omit<NewsPost, "createdAt" | "id" | "updatedAt"> & {
   id?: number;
 };
 
+export type MediaFile = {
+  createdAt: string;
+  filename: string;
+  references: string[];
+  size: number;
+  updatedAt: string;
+  url: string;
+};
+
 export async function fetchActorsFromApi() {
   const data = await request<{ actors: Actor[] }>("/actors");
   return data.actors;
@@ -191,6 +200,20 @@ export async function fetchAuditLogs(token?: string) {
     headers: authHeaders(token),
   });
   return data.logs;
+}
+
+export async function fetchAdminMedia(token?: string) {
+  const data = await request<{ files: MediaFile[] }>("/admin/media", {
+    headers: authHeaders(token),
+  });
+  return data.files;
+}
+
+export async function deleteAdminMedia(filename: string, token?: string) {
+  return request<{ deleted: boolean; filename: string }>(`/admin/media/${encodeURIComponent(filename)}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
 }
 
 export async function fetchAdminNews(token?: string) {

@@ -331,6 +331,73 @@ function getPhotoPath(photoUrl) {
   return null;
 }
 
+function getUploadUrl(filename) {
+  return `${uploadBaseUrl}/uploads/${filename}`.replace(/^\/\//, "/");
+}
+
+function getSafeUploadPath(filename) {
+  const safeName = path.basename(String(filename ?? ""));
+
+  if (!safeName || safeName !== filename) {
+    return null;
+  }
+
+  const filePath = path.resolve(uploadDir, safeName);
+  const relativePath = path.relative(uploadDir, filePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return filePath;
+}
+
+function mediaReferenceLabels(filename) {
+  const url = getUploadUrl(filename);
+  const relativeUrl = `/uploads/${filename}`;
+  const references = [];
+
+  for (const actor of getActors()) {
+    if (actor.photo === url || actor.photo === relativeUrl) {
+      references.push(`Profil: ${actor.name}`);
+    }
+
+    for (const galleryUrl of actor.gallery ?? []) {
+      if (galleryUrl === url || galleryUrl === relativeUrl) {
+        references.push(`Qalereya: ${actor.name}`);
+      }
+    }
+  }
+
+  for (const post of getNewsPosts({ includeDrafts: true })) {
+    if (post.coverImage === url || post.coverImage === relativeUrl) {
+      references.push(`Xəbər: ${post.title}`);
+    }
+  }
+
+  return references;
+}
+
+function listMediaFiles() {
+  return fs
+    .readdirSync(uploadDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const filePath = path.join(uploadDir, entry.name);
+      const stats = fs.statSync(filePath);
+
+      return {
+        createdAt: stats.birthtime.toISOString(),
+        filename: entry.name,
+        references: mediaReferenceLabels(entry.name),
+        size: stats.size,
+        updatedAt: stats.mtime.toISOString(),
+        url: getUploadUrl(entry.name),
+      };
+    })
+    .sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt));
+}
+
 function isDateExpired(dateValue) {
   if (!dateValue) {
     return false;
@@ -1333,6 +1400,38 @@ app.get("/api/admin/applications", requireAdmin, (_request, response) => {
 
 app.get("/api/admin/audit-logs", requireAdmin, (_request, response) => {
   response.json({ logs: getAuditLogs() });
+});
+
+app.get("/api/admin/media", requireAdmin, (_request, response) => {
+  response.json({ files: listMediaFiles() });
+});
+
+app.delete("/api/admin/media/:filename", requireAdmin, (request, response) => {
+  const filename = String(request.params.filename ?? "");
+  const filePath = getSafeUploadPath(filename);
+
+  if (!filePath) {
+    response.status(400).json({ error: "invalid media filename" });
+    return;
+  }
+
+  if (!fs.existsSync(filePath)) {
+    response.status(404).json({ error: "media file not found" });
+    return;
+  }
+
+  const references = mediaReferenceLabels(filename);
+  fs.unlinkSync(filePath);
+
+  createAuditLog({
+    action: "media_delete",
+    adminEmail: request.admin.email,
+    details: { filename, references },
+    entityId: filename,
+    entityType: "media",
+  });
+
+  response.json({ deleted: true, filename });
 });
 
 app.get("/api/admin/news", requireAdmin, (_request, response) => {

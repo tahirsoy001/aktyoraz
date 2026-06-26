@@ -11,11 +11,13 @@ import {
   createAiCastingFeedback,
   castingSearch,
   createActorApplication,
+  deleteAdminMedia,
   deleteApplication,
   deleteAdminNewsPost,
   fetchAiCastingFeedback,
   fetchActorsFromApi,
   fetchAuditLogs,
+  fetchAdminMedia,
   fetchAdminNews,
   fetchAiIndexStatus,
   fetchApplications,
@@ -23,6 +25,7 @@ import {
   getActorCardPdfUrl,
   getActorQrSvgUrl,
   loginAdmin,
+  MediaFile,
   NewActorApplication,
   NewsPost,
   NewsPostInput,
@@ -43,7 +46,7 @@ const SHORTLIST_KEY = "aktyor-az-shortlist";
 const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
 const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
-const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "applications", "payments", "audit"] as const;
+const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "media", "applications", "payments", "audit"] as const;
 const SITE_URL =
   import.meta.env.VITE_SITE_URL ??
   (typeof window !== "undefined" ? window.location.origin : "http://localhost:3010");
@@ -607,6 +610,7 @@ function auditActionLabel(action: string) {
     ai_index_rebuild: "AI indeksi yeniləndi",
     application_delete: "Müraciət silindi",
     application_status_update: "Müraciət statusu dəyişdi",
+    media_delete: "Media faylı silindi",
     news_create: "Xəbər yaradıldı",
     news_delete: "Xəbər silindi",
     news_update: "Xəbər yeniləndi",
@@ -1527,6 +1531,18 @@ function formatNewsDate(value?: string) {
 
   const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
   return Number.isFinite(date.getTime()) ? date.toLocaleDateString("az-AZ") : value;
+}
+
+function formatFileSize(size: number) {
+  if (size >= 1024 * 1024) {
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  if (size >= 1024) {
+    return `${Math.round(size / 1024)} KB`;
+  }
+
+  return `${size} B`;
 }
 
 function NewsCover({ post }: { post: NewsPost }) {
@@ -2532,6 +2548,8 @@ function AdminPage({
   const [adminActorPage, setAdminActorPage] = useState(1);
   const [newsForm, setNewsForm] = useState<NewsForm>(emptyNewsForm);
   const [newsMessage, setNewsMessage] = useState("");
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [mediaMessage, setMediaMessage] = useState("");
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
@@ -2565,11 +2583,13 @@ function AdminPage({
   );
   const cardPaymentLogCount = auditLogs.filter(isCardOrPaymentAudit).length;
   const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
+  const mediaStorageSize = mediaFiles.reduce((total, file) => total + file.size, 0);
   const adminSections: Array<{ id: AdminSectionId; label: string; meta: string }> = [
     { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
     { id: "news", label: "Xəbərlər", meta: `${newsPosts.length} xəbər` },
+    { id: "media", label: "Media", meta: `${mediaFiles.length} fayl` },
     { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
     { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd` },
     { id: "audit", label: "Audit log", meta: `${auditLogs.length} qeyd` },
@@ -2578,6 +2598,12 @@ function AdminPage({
   useEffect(() => {
     setLocalAiIndexStatus(aiIndexStatus);
   }, [aiIndexStatus]);
+
+  useEffect(() => {
+    refreshMediaFiles().catch(() => {
+      setMediaMessage("Media siyahısı yüklənmədi.");
+    });
+  }, [session.token]);
 
   function changeAdminSection(sectionId: AdminSectionId) {
     setActiveAdminSection(sectionId);
@@ -2716,6 +2742,7 @@ function AdminPage({
     try {
       const photoUrl = await uploadActorPhoto(file, session.token);
       updateForm("photo", photoUrl);
+      await refreshMediaFiles();
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Foto yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
     } finally {
@@ -2735,6 +2762,7 @@ function AdminPage({
     try {
       const photoUrl = await uploadActorPhoto(file, session.token);
       updateForm("gallery", [...form.gallery.split("\n").filter(Boolean), photoUrl].join("\n"));
+      await refreshMediaFiles();
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Qalereya fotosu yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
     } finally {
@@ -2754,11 +2782,39 @@ function AdminPage({
     try {
       const photoUrl = await uploadActorPhoto(file, session.token);
       updateNewsForm("coverImage", photoUrl);
+      await refreshMediaFiles();
       setNewsMessage("Xəbər şəkli yükləndi.");
     } catch (error) {
       setNewsMessage(error instanceof Error ? error.message : "Xəbər şəkli yüklənmədi.");
     } finally {
       event.target.value = "";
+    }
+  }
+
+  async function refreshMediaFiles() {
+    const files = await fetchAdminMedia(session.token);
+    setMediaFiles(files);
+    return files;
+  }
+
+  async function removeMediaFile(filename: string) {
+    const confirmed = window.confirm(
+      "Bu fayl serverdən tam silinəcək. Əgər profil və ya xəbər bu şəkildən istifadə edirsə, həmin yerdə şəkil görünməyəcək. Davam edək?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setMediaMessage("Media faylı silinir...");
+
+    try {
+      await deleteAdminMedia(filename, session.token);
+      await refreshMediaFiles();
+      setMediaMessage("Media faylı silindi.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "naməlum xəta";
+      setMediaMessage(`Media silinmədi: ${message}`);
     }
   }
 
@@ -3625,6 +3681,66 @@ function AdminPage({
             <div className="empty-state">
               <h2>Xəbər yoxdur</h2>
               <p>İlk layihə xəbərini yuxarıdakı formadan əlavə et.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={activeAdminSection === "media" ? "section" : "section admin-section-hidden"}>
+        <div className="admin-toolbar">
+          <div>
+            <h2>Media</h2>
+            <p>Sayta yüklənən profil, qalereya və xəbər şəkilləri. Silmə faylı serverdən tam götürür.</p>
+          </div>
+          <div className="admin-toolbar-actions">
+            <span className="badge">Yaddaş: {formatFileSize(mediaStorageSize)}</span>
+            <button className="button secondary" onClick={refreshMediaFiles} type="button">
+              Yenilə
+            </button>
+          </div>
+        </div>
+        {mediaMessage && <div className="upload-state">{mediaMessage}</div>}
+        <div className="media-grid">
+          {mediaFiles.length ? (
+            mediaFiles.map((file) => (
+              <article className="media-card" key={file.filename}>
+                <a className="media-thumb" href={file.url} target="_blank" rel="noreferrer">
+                  <img alt={file.filename} src={file.url} />
+                </a>
+                <div className="media-card-body">
+                  <strong title={file.filename}>{file.filename}</strong>
+                  <p>
+                    {formatFileSize(file.size)} · {new Date(file.updatedAt).toLocaleString("az-AZ")}
+                  </p>
+                  <div className="badge-row">
+                    {file.references.length ? (
+                      file.references.slice(0, 4).map((reference) => (
+                        <span className="badge success" key={reference}>
+                          {reference}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="badge warning">İstifadə olunmur</span>
+                    )}
+                    {file.references.length > 4 && (
+                      <span className="badge">+{file.references.length - 4}</span>
+                    )}
+                  </div>
+                  <div className="row-actions compact">
+                    <a className="button secondary" href={file.url} target="_blank" rel="noreferrer">
+                      Aç
+                    </a>
+                    <button className="button danger" onClick={() => removeMediaFile(file.filename)} type="button">
+                      Kökdən sil
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h2>Media faylı yoxdur</h2>
+              <p>Profil, qalereya və ya xəbər şəkli yüklənəndə burada görünəcək.</p>
             </div>
           )}
         </div>
