@@ -1581,6 +1581,16 @@ function getContactLinks(contact?: string) {
   };
 }
 
+function getAdminRequestErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+
+  if (message.includes("invalid or expired") || message.includes("admin token")) {
+    return "Admin sessiyası bitib. Çıxış edib yenidən daxil olun.";
+  }
+
+  return message ? `${fallback}: ${message}` : fallback;
+}
+
 function NewsCover({ post }: { post: NewsPost }) {
   if (post.coverImage) {
     return <img src={post.coverImage} alt={post.title} />;
@@ -2588,6 +2598,7 @@ function AdminPage({
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ActorForm>(emptyForm);
+  const [formError, setFormError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [aiIndexMessage, setAiIndexMessage] = useState("");
@@ -2648,8 +2659,8 @@ function AdminPage({
   }, [aiIndexStatus]);
 
   useEffect(() => {
-    refreshMediaFiles().catch(() => {
-      setMediaMessage("Media siyahısı yüklənmədi.");
+    refreshMediaFiles().catch((error) => {
+      setMediaMessage(getAdminRequestErrorMessage(error, "Media siyahısı yüklənmədi"));
     });
   }, [session.token]);
 
@@ -2664,6 +2675,8 @@ function AdminPage({
 
   function resetForm() {
     setEditingId(null);
+    setFormError("");
+    setUploadError("");
     setForm(emptyForm);
   }
 
@@ -2712,6 +2725,8 @@ function AdminPage({
 
   async function submitActor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError("");
+
     if (!form.name.trim()) {
       return;
     }
@@ -2744,9 +2759,14 @@ function AdminPage({
           ),
         ];
 
-    await onActorsChange(nextActors);
-    resetForm();
-    changeAdminSection("actors");
+    try {
+      await onActorsChange(nextActors);
+      resetForm();
+      changeAdminSection("actors");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "naməlum xəta";
+      setFormError(`Profil yadda saxlanmadı: ${message}`);
+    }
   }
 
   function editActor(actor: Actor) {
@@ -2861,8 +2881,7 @@ function AdminPage({
       await refreshMediaFiles();
       setMediaMessage("Media faylı silindi.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "naməlum xəta";
-      setMediaMessage(`Media silinmədi: ${message}`);
+      setMediaMessage(getAdminRequestErrorMessage(error, "Media silinmədi"));
     }
   }
 
@@ -3145,6 +3164,7 @@ function AdminPage({
               Təmizlə
             </button>
           </div>
+          {formError && <div className="form-error">{formError}</div>}
 
           <label>
             Ad soyad
@@ -4186,6 +4206,11 @@ function App() {
   const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">("loading");
   const path = window.location.pathname;
 
+  function handleAdminLogout() {
+    setAdminSession(null);
+    saveAdminSession(null);
+  }
+
   useEffect(() => {
     fetchNewsFromApi()
       .then((posts) => {
@@ -4239,6 +4264,24 @@ function App() {
         return;
       }
 
+      const hasExpiredSession = [
+        nextApplications,
+        nextAuditLogs,
+        nextAiFeedback,
+        nextAiIndexStatus,
+        nextNewsPosts,
+      ].some(
+        (result) =>
+          result.status === "rejected" &&
+          String(result.reason instanceof Error ? result.reason.message : result.reason).match(/invalid or expired|admin token/i),
+      );
+
+      if (hasExpiredSession) {
+        handleAdminLogout();
+        setApiStatus("offline");
+        return;
+      }
+
       if (nextApplications.status === "fulfilled") {
         setApplications(nextApplications.value);
         setApiStatus("online");
@@ -4273,6 +4316,8 @@ function App() {
   }, [adminSession]);
 
   async function updateActors(nextActors: Actor[]) {
+    const previousActors = actors;
+
     setActors(nextActors);
     saveActors(nextActors);
 
@@ -4285,8 +4330,11 @@ function App() {
         setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
       }
       setApiStatus("online");
-    } catch {
+    } catch (error) {
+      setActors(previousActors);
+      saveActors(previousActors);
       setApiStatus("offline");
+      throw error;
     }
   }
 
@@ -4308,11 +4356,6 @@ function App() {
     setAdminSession(session);
     saveAdminSession(session);
     setApiStatus("online");
-  }
-
-  function handleAdminLogout() {
-    setAdminSession(null);
-    saveAdminSession(null);
   }
 
   async function changeApplicationStatus(id: number, status: ActorApplication["status"]) {
