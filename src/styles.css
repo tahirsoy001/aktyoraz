@@ -1256,13 +1256,23 @@ h1 {
 }
 
 .contact-chip {
+  align-items: center;
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
+  display: inline-flex;
   font-weight: 800;
+  justify-content: center;
   min-height: 44px;
   padding: 12px 14px;
+  text-decoration: none;
+}
+
+.contact-chip.whatsapp {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
 }
 
 .profile-detail-grid,

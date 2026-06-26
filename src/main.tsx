@@ -1545,6 +1545,42 @@ function formatFileSize(size: number) {
   return `${size} B`;
 }
 
+function normalizePhoneNumber(value?: string) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+
+  if (digits.length < 7) {
+    return null;
+  }
+
+  if (digits.startsWith("00") && digits.length > 10) {
+    return `+${digits.slice(2)}`;
+  }
+
+  if (digits.startsWith("994")) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith("0") && digits.length >= 9) {
+    return `+994${digits.slice(1)}`;
+  }
+
+  return `+${digits}`;
+}
+
+function getContactLinks(contact?: string) {
+  const phone = normalizePhoneNumber(contact);
+
+  if (!phone) {
+    return null;
+  }
+
+  return {
+    phone,
+    tel: `tel:${phone}`,
+    whatsapp: `https://wa.me/${phone.replace(/\D/g, "")}`,
+  };
+}
+
 function NewsCover({ post }: { post: NewsPost }) {
   if (post.coverImage) {
     return <img src={post.coverImage} alt={post.title} />;
@@ -2230,6 +2266,7 @@ function ActorProfilePage({
   }
 
   const ownVote = votes[actor.id];
+  const contactLinks = getContactLinks(actor.contact);
 
   return (
     <main className="page-shell">
@@ -2310,7 +2347,18 @@ function ActorProfilePage({
             <a className="button secondary" href={getActorCardPdfUrl(actor.id)}>
               PDF kart
             </a>
-            {actor.contact && <span className="contact-chip">{actor.contact}</span>}
+            {contactLinks ? (
+              <>
+                <a className="contact-chip" href={contactLinks.tel}>
+                  Zəng et
+                </a>
+                <a className="contact-chip whatsapp" href={contactLinks.whatsapp} rel="noreferrer" target="_blank">
+                  WhatsApp
+                </a>
+              </>
+            ) : (
+              actor.contact && <span className="contact-chip">{actor.contact}</span>
+            )}
           </div>
           <div className="badge-row">
             <span className="badge rating-badge">
