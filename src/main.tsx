@@ -42,9 +42,13 @@ const VOTES_KEY = "aktyor-az-votes";
 const SHORTLIST_KEY = "aktyor-az-shortlist";
 const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
+const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
+const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "applications", "payments", "audit"] as const;
 const SITE_URL =
   import.meta.env.VITE_SITE_URL ??
   (typeof window !== "undefined" ? window.location.origin : "http://localhost:3010");
+
+type AdminSectionId = (typeof ADMIN_SECTION_IDS)[number];
 
 type SeoConfig = {
   canonical: string;
@@ -790,6 +794,21 @@ function saveAdminSession(session: AdminSession | null) {
   }
 
   window.localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+}
+
+function readAdminSection(): AdminSectionId {
+  try {
+    const savedSection = window.localStorage.getItem(ADMIN_SECTION_KEY);
+    return ADMIN_SECTION_IDS.includes(savedSection as AdminSectionId)
+      ? (savedSection as AdminSectionId)
+      : "dashboard";
+  } catch {
+    return "dashboard";
+  }
+}
+
+function saveAdminSection(sectionId: AdminSectionId) {
+  window.localStorage.setItem(ADMIN_SECTION_KEY, sectionId);
 }
 
 function slugify(value: string) {
@@ -2513,7 +2532,7 @@ function AdminPage({
   const [adminActorPage, setAdminActorPage] = useState(1);
   const [newsForm, setNewsForm] = useState<NewsForm>(emptyNewsForm);
   const [newsMessage, setNewsMessage] = useState("");
-  const [activeAdminSection, setActiveAdminSection] = useState("dashboard");
+  const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
     [actors, editingId],
@@ -2546,7 +2565,7 @@ function AdminPage({
   );
   const cardPaymentLogCount = auditLogs.filter(isCardOrPaymentAudit).length;
   const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
-  const adminSections = [
+  const adminSections: Array<{ id: AdminSectionId; label: string; meta: string }> = [
     { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
@@ -2559,6 +2578,11 @@ function AdminPage({
   useEffect(() => {
     setLocalAiIndexStatus(aiIndexStatus);
   }, [aiIndexStatus]);
+
+  function changeAdminSection(sectionId: AdminSectionId) {
+    setActiveAdminSection(sectionId);
+    saveAdminSection(sectionId);
+  }
 
   function updateForm(name: keyof ActorForm, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -2599,7 +2623,7 @@ function AdminPage({
   function editNews(post: NewsPost) {
     setNewsForm(newsToForm(post));
     setNewsMessage("");
-    setActiveAdminSection("news");
+    changeAdminSection("news");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2648,19 +2672,19 @@ function AdminPage({
 
     await onActorsChange(nextActors);
     resetForm();
-    setActiveAdminSection("actors");
+    changeAdminSection("actors");
   }
 
   function editActor(actor: Actor) {
     setEditingId(actor.id);
     setForm(actorToForm(actor));
-    setActiveAdminSection("actorForm");
+    changeAdminSection("actorForm");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function startNewActor() {
     resetForm();
-    setActiveAdminSection("actorForm");
+    changeAdminSection("actorForm");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2814,7 +2838,7 @@ function AdminPage({
                 className={activeAdminSection === section.id ? "active" : ""}
                 key={section.id}
                 onClick={() => {
-                  setActiveAdminSection(section.id);
+                  changeAdminSection(section.id);
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
                 type="button"
@@ -2837,10 +2861,10 @@ function AdminPage({
       <section
         className={
           activeAdminSection === "dashboard"
-            ? "admin-layout"
+            ? "admin-dashboard-section"
             : activeAdminSection === "actorForm"
               ? "admin-actor-form-section"
-              : "admin-layout admin-section-hidden"
+              : "admin-dashboard-section admin-section-hidden"
         }
       >
         <div className={activeAdminSection === "dashboard" ? "" : "admin-section-hidden"}>

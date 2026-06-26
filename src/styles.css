@@ -1958,6 +1958,12 @@ h1 {
   min-width: 0;
 }
 
+.admin-dashboard-section {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
 .admin-actor-form-section {
   display: block;
   min-width: 0;

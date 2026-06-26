@@ -610,13 +610,25 @@ export function deleteApplication(id) {
 }
 
 export function createAuditLog({ adminEmail, action, entityType, entityId, details = {} }) {
+  pruneAuditLogs();
+
   db.prepare(
     `INSERT INTO audit_logs (admin_email, action, entity_type, entity_id, details)
      VALUES (?, ?, ?, ?, ?)`,
   ).run(adminEmail, action, entityType, entityId ?? null, JSON.stringify(details));
 }
 
+export function pruneAuditLogs() {
+  db.prepare("DELETE FROM audit_logs WHERE action = 'rating_update' AND created_at < datetime('now', '-30 days')").run();
+  db.prepare("DELETE FROM audit_logs WHERE action = 'actor_visibility_update' AND created_at < datetime('now', '-365 days')").run();
+  db.prepare(
+    "DELETE FROM audit_logs WHERE action NOT IN ('rating_update', 'actor_visibility_update') AND created_at < datetime('now', '-7 days')",
+  ).run();
+}
+
 export function getAuditLogs(limit = 80) {
+  pruneAuditLogs();
+
   return db
     .prepare("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ?")
     .all(limit)
