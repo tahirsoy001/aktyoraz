@@ -2834,7 +2834,15 @@ function AdminPage({
           </div>
         </aside>
         <div className="admin-content">
-      <section className={activeAdminSection === "dashboard" || activeAdminSection === "actorForm" ? "admin-layout" : "admin-layout admin-section-hidden"}>
+      <section
+        className={
+          activeAdminSection === "dashboard"
+            ? "admin-layout"
+            : activeAdminSection === "actorForm"
+              ? "admin-actor-form-section"
+              : "admin-layout admin-section-hidden"
+        }
+      >
         <div className={activeAdminSection === "dashboard" ? "" : "admin-section-hidden"}>
           <p className="eyebrow">Admin panel</p>
           <h1>Profil idarəetməsi</h1>

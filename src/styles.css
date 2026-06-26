@@ -1958,6 +1958,15 @@ h1 {
   min-width: 0;
 }
 
+.admin-actor-form-section {
+  display: block;
+  min-width: 0;
+}
+
+.admin-actor-form-section .admin-form {
+  width: min(100%, 1040px);
+}
+
 .admin-section-hidden {
   display: none !important;
 }
@@ -2621,6 +2630,10 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-actor-form-section .admin-form {
+    width: 100%;
+  }
+
   .top-five-rail {
     grid-auto-columns: minmax(430px, 86vw);
   }
@@ -2881,6 +2894,24 @@ h1 {
   .admin-side-nav button {
     flex-basis: 172px;
     min-height: 52px;
+  }
+
+  .admin-sidebar-actions,
+  .form-header,
+  .admin-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-sidebar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .form-header .button,
+  .admin-toolbar-actions,
+  .admin-toolbar-actions .button,
+  .admin-toolbar-actions input {
+    width: 100%;
   }
 
   .news-detail {
