@@ -4,7 +4,11 @@
   --muted: #6b6f76;
   --line: #deded6;
   --panel: #ffffff;
-  --accent: #b91c1c;
+  --accent: #8d28e4;
+  --accent-dark: #6f1fba;
+  --accent-soft: #f3e8ff;
+  --accent-border: #d8b4fe;
+  --accent-rgb: 141, 40, 228;
   --ink: #111827;
 }
 
@@ -165,7 +169,7 @@ textarea {
 
 .primary-link.active {
   background: var(--accent);
-  box-shadow: 0 10px 24px rgba(185, 28, 28, 0.22);
+  box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.22);
 }
 
 .hero {
@@ -180,7 +184,7 @@ textarea {
 
 .hero::before {
   background:
-    linear-gradient(120deg, rgba(185, 28, 28, 0.1), transparent 38%),
+    linear-gradient(120deg, rgba(var(--accent-rgb), 0.1), transparent 38%),
     radial-gradient(circle at 88% 18%, rgba(17, 24, 39, 0.08), transparent 32%);
   content: "";
   inset: 0;
@@ -983,7 +987,7 @@ h1 {
 }
 
 .actor-card:hover {
-  border-color: rgba(185, 28, 28, 0.32);
+  border-color: rgba(var(--accent-rgb), 0.32);
   box-shadow: 0 16px 34px rgba(17, 24, 39, 0.12);
   transform: translateY(-4px);
 }
@@ -994,7 +998,7 @@ h1 {
 }
 
 .actor-card:focus-visible {
-  outline: 3px solid rgba(185, 28, 28, 0.28);
+  outline: 3px solid rgba(var(--accent-rgb), 0.28);
   outline-offset: 3px;
 }
 
@@ -1609,7 +1613,7 @@ h1 {
 }
 
 .prompt-example:hover {
-  border-color: rgba(185, 28, 28, 0.32);
+  border-color: rgba(var(--accent-rgb), 0.32);
 }
 
 .ai-factor {
@@ -2049,7 +2053,7 @@ h1 {
 }
 
 .admin-top-item:hover {
-  border-color: rgba(185, 28, 28, 0.32);
+  border-color: rgba(var(--accent-rgb), 0.32);
 }
 
 .admin-top-item strong {
@@ -2437,7 +2441,7 @@ h1 {
 
 .news-hero {
   background:
-    linear-gradient(120deg, rgba(185, 28, 28, 0.08), transparent 42%),
+    linear-gradient(120deg, rgba(var(--accent-rgb), 0.08), transparent 42%),
     #ffffff;
 }
 
