@@ -3651,6 +3651,9 @@ function AdminPage({
                   </p>
                   <p>{application.summary}</p>
                   <div className="badge-row">
+                    <span className="badge">
+                      Müraciət vaxtı: {new Date(application.createdAt).toLocaleString("az-AZ")}
+                    </span>
                     <span className="badge">{application.status}</span>
                     {application.languages.map((language) => (
                       <span className="badge" key={language}>
