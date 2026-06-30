@@ -278,6 +278,20 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
     };
   }
 
+  if (path === "/about") {
+    return {
+      canonical: `${SITE_URL}/about`,
+      description: "Aktyor.az haqqında məlumat, aktyor profilləri, rəqəmsal təsdiq kartları və medal alma qaydaları.",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        name: "Aktyor.az haqqında",
+        url: `${SITE_URL}/about`,
+      },
+      title: "Haqqımızda və medal alma qaydaları | Aktyor.az",
+    };
+  }
+
   if (newsPost) {
     return {
       canonical: `${SITE_URL}/news/${newsPost.slug}`,
@@ -1119,6 +1133,9 @@ function Header() {
         <a className={isActive("/news") ? "nav-link active" : "nav-link"} href="/news">
           Xəbərlər
         </a>
+        <a className={isActive("/about") ? "nav-link active" : "nav-link"} href="/about">
+          Haqqımızda
+        </a>
         <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
           Bazaya qoşul
         </a>
@@ -1175,6 +1192,37 @@ function Portrait({ actor }: { actor: Actor }) {
   return <div className="portrait">{actor.initials}</div>;
 }
 
+function MedalRulesLink({ compact = false }: { compact?: boolean }) {
+  const rulesText = ACTOR_MEDALS.map((medal) => `${medal.label}: ${medal.description}`).join("\n");
+  const openRules = () => {
+    window.location.href = "/about#medal-rules";
+  };
+
+  return (
+    <span
+      aria-label="Medal alma qaydaları"
+      className={compact ? "medal-info compact" : "medal-info"}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openRules();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          openRules();
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      title={rulesText}
+    >
+      i
+    </span>
+  );
+}
+
 function ActorMedals({
   actor,
   variant = "overlay",
@@ -1193,24 +1241,11 @@ function ActorMedals({
 
     return (
       <div className="actor-medals compact" aria-label="Aktyor medalları">
-        <span
-          className="actor-medal compact-trigger"
-          title={medals.map((medal) => `${medal.label}: ${medal.description}`).join("\n")}
-        >
+        <span className="actor-medal compact-trigger" title={primaryMedal.label}>
           <strong>{primaryMedal.shortLabel}</strong>
           <span>{medals.length > 1 ? `${medals.length} medal` : primaryMedal.label}</span>
         </span>
-        <div className="medal-popover" aria-hidden="true">
-          {medals.map((medal) => (
-            <span className="medal-popover-item" key={medal.id}>
-              <strong>{medal.shortLabel}</strong>
-              <span>
-                <b>{medal.label}</b>
-                <small>{medal.description}</small>
-              </span>
-            </span>
-          ))}
-        </div>
+        <MedalRulesLink compact />
       </div>
     );
   }
@@ -1218,11 +1253,12 @@ function ActorMedals({
   return (
     <div className={variant === "inline" ? "actor-medals inline" : "actor-medals overlay"} aria-label="Aktyor medalları">
       {medals.map((medal) => (
-        <span className="actor-medal" data-label={medal.label} key={medal.id} title={`${medal.label}: ${medal.description}`}>
+        <span className="actor-medal" data-label={medal.label} key={medal.id} title={medal.label}>
           <strong>{medal.shortLabel}</strong>
           <span>{medal.label}</span>
         </span>
       ))}
+      <MedalRulesLink />
     </div>
   );
 }
@@ -1832,6 +1868,61 @@ function NewsDetailPage({ post }: { post: NewsPost }) {
           ))}
         </div>
       </article>
+    </main>
+  );
+}
+
+function AboutPage() {
+  return (
+    <main className="page-shell">
+      <Header />
+      <section className="section about-hero">
+        <p className="eyebrow">Haqqımızda</p>
+        <h1>Azərbaycan aktyor və aktrisa bazası.</h1>
+        <p className="lead">
+          Aktyor.az aktyor, aktrisa və uşaq aktyor profillərini kastinq komandaları üçün
+          səliqəli formada təqdim edən, rəqəmsal ID və təsdiq kartı məntiqi ilə işləyən
+          peşəkar baza sistemidir.
+        </p>
+      </section>
+
+      <section className="section about-grid">
+        <article>
+          <h2>Nə üçün yaradılıb?</h2>
+          <p>
+            Məqsəd rejissor və prodüserlərin uyğun aktyoru daha tez tapması, aktyorların
+            isə yoxlanılmış profil, portfolio və rəqəmsal təsdiq səhifəsi ilə təqdim
+            olunmasıdır.
+          </p>
+        </article>
+        <article>
+          <h2>Profil təsdiqi</h2>
+          <p>
+            Profil məlumatları admin tərəfindən yoxlanılır, foto standartı qorunur və
+            kartların aktiv/deaktiv statusu ayrıca idarə olunur.
+          </p>
+        </article>
+      </section>
+
+      <section className="section medal-rules-section" id="medal-rules">
+        <div className="section-header">
+          <h2>Medal alma qaydaları</h2>
+          <span>{ACTOR_MEDALS.length} medal</span>
+        </div>
+        <div className="medal-rules-grid">
+          {ACTOR_MEDALS.map((medal) => (
+            <article className="medal-rule-card" key={medal.id}>
+              <span className="actor-medal preview">
+                <strong>{medal.shortLabel}</strong>
+              </span>
+              <div>
+                <h3>{medal.label}</h3>
+                <p>{medal.description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
@@ -4709,6 +4800,10 @@ function App() {
 
   if (path === "/news") {
     return <NewsListPage posts={newsPosts.filter((post) => post.status === "published")} />;
+  }
+
+  if (path === "/about") {
+    return <AboutPage />;
   }
 
   if (path.startsWith("/news/")) {
