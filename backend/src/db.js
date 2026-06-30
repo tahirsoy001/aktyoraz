@@ -34,6 +34,7 @@ db.exec(`
     special_skills TEXT NOT NULL DEFAULT '[]',
     titles TEXT NOT NULL DEFAULT '[]',
     browse_categories TEXT NOT NULL DEFAULT '[]',
+    medals TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL CHECK (status IN ('verified', 'review', 'inactive')),
     summary TEXT NOT NULL,
     photo TEXT,
@@ -161,6 +162,7 @@ for (const statement of [
   "ALTER TABLE actors ADD COLUMN special_skills TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE actors ADD COLUMN titles TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE actors ADD COLUMN browse_categories TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE actors ADD COLUMN medals TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE applications ADD COLUMN genres TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE applications ADD COLUMN special_skills TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE applications ADD COLUMN titles TEXT NOT NULL DEFAULT '[]'",
@@ -217,6 +219,7 @@ if (actorTableSql().includes("'unpaid'") || actorTableSql().includes("'overdue'"
         special_skills TEXT NOT NULL DEFAULT '[]',
         titles TEXT NOT NULL DEFAULT '[]',
         browse_categories TEXT NOT NULL DEFAULT '[]',
+        medals TEXT NOT NULL DEFAULT '[]',
         status TEXT NOT NULL CHECK (status IN ('verified', 'review', 'inactive')),
         summary TEXT NOT NULL,
         photo TEXT,
@@ -247,14 +250,14 @@ if (actorTableSql().includes("'unpaid'") || actorTableSql().includes("'overdue'"
     db.exec(`
       INSERT INTO actors (
         id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres,
-        special_skills, titles, browse_categories, status, summary, photo, gallery, showreel, contact, rating, rating_count,
+        special_skills, titles, browse_categories, medals, status, summary, photo, gallery, showreel, contact, rating, rating_count,
         admin_boost, profile_kind, featured_order, home_order, card_status, card_issued_at, card_expires_at, membership_status,
         annual_payment_status, annual_payment_date, payment_manual_confirmed, payment_provider, payment_reference,
         ai_bio, ai_profile, created_at, updated_at
       )
       SELECT
         id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres,
-        special_skills, titles, COALESCE(browse_categories, '[]'), status, summary, photo, gallery, showreel, contact, rating, rating_count,
+        special_skills, titles, COALESCE(browse_categories, '[]'), COALESCE(medals, '[]'), status, summary, photo, gallery, showreel, contact, rating, rating_count,
         admin_boost, COALESCE(profile_kind, 'real'), featured_order, home_order, card_status, card_issued_at, card_expires_at, membership_status,
         CASE annual_payment_status
           WHEN 'unpaid' THEN 'pending'
@@ -310,12 +313,12 @@ for (const actor of seedActors) {
 
 const insertActor = db.prepare(`
   INSERT INTO actors (
-    id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres, special_skills, titles, browse_categories,
+    id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres, special_skills, titles, browse_categories, medals,
     status, summary, ai_bio, ai_profile, photo, gallery, showreel, contact, rating, rating_count, admin_boost, profile_kind, featured_order, home_order,
     card_status, card_issued_at, card_expires_at, membership_status, annual_payment_status, annual_payment_date,
     payment_manual_confirmed, payment_provider, payment_reference, updated_at
   ) VALUES (
-    @id, @slug, @initials, @name, @role, @city, @ageRange, @height, @weight, @hairColor, @languages, @skills, @genres, @specialSkills, @titles, @browseCategories,
+    @id, @slug, @initials, @name, @role, @city, @ageRange, @height, @weight, @hairColor, @languages, @skills, @genres, @specialSkills, @titles, @browseCategories, @medals,
     @status, @summary, @aiBio, @aiProfile, @photo, @gallery, @showreel, @contact, @rating, @ratingCount, @adminBoost, @profileKind, @featuredOrder, @homeOrder,
     @cardStatus, @cardIssuedAt, @cardExpiresAt, @membershipStatus, @annualPaymentStatus, @annualPaymentDate,
     @paymentManualConfirmed, @paymentProvider, @paymentReference, CURRENT_TIMESTAMP
@@ -336,6 +339,7 @@ const insertActor = db.prepare(`
     special_skills = excluded.special_skills,
     titles = excluded.titles,
     browse_categories = excluded.browse_categories,
+    medals = excluded.medals,
     status = excluded.status,
     summary = excluded.summary,
     ai_bio = excluded.ai_bio,
@@ -380,6 +384,7 @@ export function toDbActor(actor) {
     specialSkills: JSON.stringify(actor.specialSkills ?? []),
     titles: JSON.stringify(actor.titles ?? []),
     browseCategories: JSON.stringify(actor.browseCategories ?? []),
+    medals: JSON.stringify(actor.medals ?? []),
     status: actor.status,
     summary: actor.summary,
     aiBio: actor.aiBio ?? "",
@@ -428,6 +433,7 @@ export function fromDbActor(row) {
     specialSkills: JSON.parse(row.special_skills ?? "[]"),
     titles: JSON.parse(row.titles ?? "[]"),
     browseCategories: JSON.parse(row.browse_categories ?? "[]"),
+    medals: JSON.parse(row.medals ?? "[]"),
     status: row.status,
     summary: row.summary,
     aiBio: row.ai_bio ?? "",

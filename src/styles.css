@@ -627,8 +627,8 @@ h1 {
   width: 100%;
 }
 
-.top-actor-visual span,
-.poster-visual span:not(.poster-score) {
+.top-actor-visual > span,
+.poster-visual > span:not(.poster-score) {
   align-items: center;
   display: flex;
   font-size: 54px;
@@ -1057,10 +1057,105 @@ h1 {
     transform 220ms ease;
 }
 
+.portrait-wrap {
+  display: block;
+  position: relative;
+}
+
+.portrait-wrap .portrait {
+  width: 100%;
+}
+
+.portrait-wrap.profile {
+  width: 100%;
+}
+
 .portrait.photo {
   height: auto;
   object-fit: cover;
   width: 100%;
+}
+
+.actor-medals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actor-medals.overlay {
+  left: 10px;
+  max-width: calc(100% - 20px);
+  position: absolute;
+  top: 10px;
+  z-index: 3;
+}
+
+.actor-medals.inline {
+  margin: 12px 0 4px;
+}
+
+.actor-medal {
+  align-items: center;
+  background: rgba(141, 40, 228, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  gap: 6px;
+  line-height: 1;
+  min-height: 28px;
+  padding: 5px 8px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.actor-medal strong {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 10px;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 4px;
+}
+
+.actor-medals.overlay .actor-medal > span {
+  display: none;
+}
+
+.actor-medals.inline .actor-medal > span {
+  display: inline;
+}
+
+.actor-medal:hover::after,
+.actor-medal:focus-visible::after {
+  background: #111827;
+  border-radius: 6px;
+  bottom: calc(100% + 8px);
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.22);
+  color: #ffffff;
+  content: attr(title);
+  font-size: 12px;
+  font-weight: 700;
+  left: 0;
+  line-height: 1.35;
+  max-width: 260px;
+  min-width: 190px;
+  padding: 8px 10px;
+  position: absolute;
+  white-space: normal;
+  z-index: 20;
+}
+
+.actor-medal.preview {
+  flex: 0 0 auto;
+  justify-content: center;
+  min-width: 36px;
 }
 
 .actor-info {
@@ -2335,6 +2430,56 @@ h1 {
   padding: 11px 12px;
 }
 
+.admin-medal-field {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.admin-medal-field p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+.admin-medal-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-medal-option {
+  align-items: center;
+  background: #fbfbf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto auto 1fr;
+  margin: 0;
+  padding: 10px;
+}
+
+.admin-medal-option input {
+  min-width: auto;
+}
+
+.admin-medal-option b,
+.admin-medal-option small {
+  display: block;
+}
+
+.admin-medal-option small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
 .admin-toolbar {
   margin-bottom: 16px;
 }
@@ -2938,6 +3083,7 @@ h1 {
   .form-grid,
   .gallery-preview,
   .profile-gallery,
+  .admin-medal-grid,
   .admin-row,
   .application-row,
   .admin-stats,

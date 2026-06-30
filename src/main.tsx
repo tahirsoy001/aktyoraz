@@ -53,6 +53,43 @@ const SITE_URL =
 
 type AdminSectionId = (typeof ADMIN_SECTION_IDS)[number];
 
+const ACTOR_MEDALS = [
+  {
+    id: "disciplined",
+    label: "Disiplinli aktyor",
+    shortLabel: "D",
+    description: "Vaxta, tapşırıqlara və çəkiliş qaydalarına ciddi yanaşan aktyor.",
+  },
+  {
+    id: "educated",
+    label: "Təhsilli aktyor",
+    shortLabel: "T",
+    description: "Aktyorluq, teatr, kino və ya əlaqəli sahədə təhsil və hazırlığı olan aktyor.",
+  },
+  {
+    id: "experienced",
+    label: "Təcrübəli aktyor",
+    shortLabel: "XP",
+    description: "Kamera, səhnə və ya layihə təcrübəsi yüksək olan aktyor.",
+  },
+  {
+    id: "team-player",
+    label: "Komanda işində effektli",
+    shortLabel: "K",
+    description: "Rejissor, prodüser və çəkiliş komandası ilə effektiv işləyən aktyor.",
+  },
+  {
+    id: "multiskilled",
+    label: "Çoxşaxəli",
+    shortLabel: "Ç",
+    description: "Aktyorluqla yanaşı montaj, ssenari və digər kino ixtisaslarını da anlayır.",
+  },
+] as const;
+
+type ActorMedalId = (typeof ACTOR_MEDALS)[number]["id"];
+
+const ACTOR_MEDAL_IDS = new Set<string>(ACTOR_MEDALS.map((medal) => medal.id));
+
 type SeoConfig = {
   canonical: string;
   description: string;
@@ -308,6 +345,7 @@ type ActorForm = {
   specialSkills: string;
   titles: string;
   browseCategories: string;
+  medals: ActorMedalId[];
   status: Actor["status"];
   summary: string;
   aiBio: string;
@@ -354,6 +392,7 @@ const emptyForm: ActorForm = {
   specialSkills: "",
   titles: "",
   browseCategories: "",
+  medals: [],
   status: "review",
   summary: "",
   aiBio: "",
@@ -450,6 +489,7 @@ function normalizeActor(actor: Partial<Actor>): Actor {
     specialSkills: actor.specialSkills ?? fallback?.specialSkills ?? [],
     titles: actor.titles ?? fallback?.titles ?? [],
     browseCategories: actor.browseCategories ?? fallback?.browseCategories ?? [],
+    medals: (actor.medals ?? fallback?.medals ?? []).filter((medal) => ACTOR_MEDAL_IDS.has(medal)),
     status: actor.status ?? fallback?.status ?? "review",
     summary: actor.summary ?? fallback?.summary ?? "",
     aiBio: actor.aiBio ?? fallback?.aiBio ?? "",
@@ -880,6 +920,7 @@ function formToActor(form: ActorForm, existingActors: Actor[], currentId?: strin
     specialSkills: splitList(form.specialSkills),
     titles: splitList(form.titles),
     browseCategories: splitList(form.browseCategories),
+    medals: form.medals,
     status: form.status,
     summary: form.summary.trim(),
     aiBio: form.aiBio.trim(),
@@ -939,6 +980,7 @@ function actorToForm(actor: Actor): ActorForm {
     specialSkills: (actor.specialSkills ?? []).join(", "),
     titles: (actor.titles ?? []).join(", "),
     browseCategories: (actor.browseCategories ?? []).join(", "),
+    medals: (actor.medals ?? []).filter((medal) => ACTOR_MEDAL_IDS.has(medal)) as ActorMedalId[],
     status: actor.status,
     summary: actor.summary,
     aiBio: actor.aiBio ?? "",
@@ -1088,6 +1130,25 @@ function Portrait({ actor }: { actor: Actor }) {
   return <div className="portrait">{actor.initials}</div>;
 }
 
+function ActorMedals({ actor, variant = "overlay" }: { actor: Actor; variant?: "overlay" | "inline" }) {
+  const medals = ACTOR_MEDALS.filter((medal) => actor.medals?.includes(medal.id));
+
+  if (!medals.length) {
+    return null;
+  }
+
+  return (
+    <div className={variant === "inline" ? "actor-medals inline" : "actor-medals overlay"} aria-label="Aktyor medalları">
+      {medals.map((medal) => (
+        <span className="actor-medal" data-label={medal.label} key={medal.id} title={`${medal.label}: ${medal.description}`}>
+          <strong>{medal.shortLabel}</strong>
+          <span>{medal.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ActorCard({
   actor,
   isShortlisted,
@@ -1102,7 +1163,10 @@ function ActorCard({
   return (
     <article className="actor-card">
       <a className="actor-card-link" href={`/actors/${actor.slug}`}>
-        <Portrait actor={actor} />
+        <div className="portrait-wrap">
+          <Portrait actor={actor} />
+          <ActorMedals actor={actor} />
+        </div>
         <div className="actor-info">
           <div className="card-title-row">
             <h3>{actor.name}</h3>
@@ -1359,10 +1423,20 @@ function ActorsPage({
 
   function ActorVisual({ actor }: { actor: Actor }) {
     if (actor.photo) {
-      return <img src={actor.photo} alt={actor.name} />;
+      return (
+        <>
+          <img src={actor.photo} alt={actor.name} />
+          <ActorMedals actor={actor} />
+        </>
+      );
     }
 
-    return <span>{actor.initials}</span>;
+    return (
+      <>
+        <span>{actor.initials}</span>
+        <ActorMedals actor={actor} />
+      </>
+    );
   }
 
   return (
@@ -2283,7 +2357,10 @@ function ActorProfilePage({
       <Header />
       <section className="profile-page">
         <div className="profile-visual-card">
-          <Portrait actor={actor} />
+          <div className="portrait-wrap profile">
+            <Portrait actor={actor} />
+            <ActorMedals actor={actor} />
+          </div>
           <div className="profile-card-body">
             <div className="profile-status-row">
               <p className={actor.status === "verified" ? "status" : "status warning-text"}>
@@ -2342,6 +2419,7 @@ function ActorProfilePage({
             </span>
           </div>
           <p className="profile-role">{actor.role}</p>
+          <ActorMedals actor={actor} variant="inline" />
           <p className="profile-summary">
             {actor.summary || "Bu profil kastinq və portfolio yoxlaması üçün hazırlanıb."}
           </p>
@@ -2673,6 +2751,15 @@ function AdminPage({
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function toggleMedal(medalId: ActorMedalId, checked: boolean) {
+    setForm((current) => ({
+      ...current,
+      medals: checked
+        ? Array.from(new Set([...current.medals, medalId]))
+        : current.medals.filter((id) => id !== medalId),
+    }));
+  }
+
   function resetForm() {
     setEditingId(null);
     setFormError("");
@@ -2918,6 +3005,7 @@ function AdminPage({
       id: makeId(actors),
       initials: makeInitials(application.name),
       languages: application.languages,
+      medals: [],
       membershipStatus: "pending",
       name: application.name,
       paymentManualConfirmed: false,
@@ -3434,6 +3522,30 @@ function AdminPage({
               value={form.titles}
             />
           </label>
+          <div className="admin-medal-field">
+            <div>
+              <strong>Admin medalları</strong>
+              <p>Bu medalları yalnız admin verir. Kartda şəklin üstündə, profildə isə ayrıca görünür.</p>
+            </div>
+            <div className="admin-medal-grid">
+              {ACTOR_MEDALS.map((medal) => (
+                <label className="admin-medal-option" key={medal.id} title={medal.description}>
+                  <input
+                    checked={form.medals.includes(medal.id)}
+                    onChange={(event) => toggleMedal(medal.id, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span className="actor-medal preview">
+                    <strong>{medal.shortLabel}</strong>
+                  </span>
+                  <span>
+                    <b>{medal.label}</b>
+                    <small>{medal.description}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
           <label>
             Baza slide kateqoriyaları
             <input
