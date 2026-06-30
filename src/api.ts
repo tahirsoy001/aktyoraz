@@ -130,11 +130,12 @@ export type NewsPost = {
   publishedAt?: string;
   seoTitle?: string;
   seoDescription?: string;
+  viewCount?: number;
   createdAt: string;
   updatedAt: string;
 };
 
-export type NewsPostInput = Omit<NewsPost, "createdAt" | "id" | "updatedAt"> & {
+export type NewsPostInput = Omit<NewsPost, "createdAt" | "id" | "updatedAt" | "viewCount"> & {
   id?: number;
 };
 
@@ -160,6 +161,29 @@ export async function fetchNewsFromApi() {
 export async function fetchNewsPostFromApi(slug: string) {
   const data = await request<{ post: NewsPost }>(`/news/${encodeURIComponent(slug)}`);
   return data.post;
+}
+
+export async function fetchSiteViewCount() {
+  const data = await request<{ count: number }>("/analytics/site");
+  return data.count;
+}
+
+export async function recordSiteView() {
+  return request<{ counted: boolean; count: number }>("/analytics/site/view", {
+    method: "POST",
+  });
+}
+
+export async function recordActorProfileView(actorId: string) {
+  return request<{ counted: boolean; viewCount: number }>(`/actors/${encodeURIComponent(actorId)}/view`, {
+    method: "POST",
+  });
+}
+
+export async function recordNewsPostView(slug: string) {
+  return request<{ counted: boolean; viewCount: number }>(`/news/${encodeURIComponent(slug)}/view`, {
+    method: "POST",
+  });
 }
 
 export async function castingSearch(prompt: string, limit = 6) {

@@ -30,6 +30,8 @@ import {
   getEmbeddingStats,
   getNewsPostBySlug,
   getNewsPosts,
+  getSiteViewCount,
+  recordUniqueView,
   resetSeed,
   saveNewsPost,
   saveActor,
@@ -222,6 +224,19 @@ function recordFailedAdminLogin(request) {
 
 function clearAdminLoginRateLimit(request) {
   adminLoginAttempts.delete(adminLoginRateLimitKey(request));
+}
+
+function getClientIp(request) {
+  const forwardedFor = String(request.headers["x-forwarded-for"] ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)[0];
+
+  return forwardedFor || request.ip || request.socket.remoteAddress || "unknown";
+}
+
+function getVisitorHash(request) {
+  return createHash("sha256").update(`${getClientIp(request)}|${jwtSecret}`).digest("hex");
 }
 
 function requireAdmin(request, response, next) {
@@ -1269,6 +1284,65 @@ app.get("/api/news/:slug", (request, response) => {
   }
 
   response.json({ post });
+});
+
+app.get("/api/analytics/site", (_request, response) => {
+  response.json({ count: getSiteViewCount() });
+});
+
+app.post("/api/analytics/site/view", (request, response, next) => {
+  try {
+    const result = recordUniqueView({
+      entityType: "site",
+      visitorHash: getVisitorHash(request),
+    });
+
+    response.json({ counted: result.counted, count: result.count });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/news/:slug/view", (request, response, next) => {
+  try {
+    const post = getNewsPostBySlug(request.params.slug);
+
+    if (!post) {
+      response.status(404).json({ error: "news post not found" });
+      return;
+    }
+
+    const result = recordUniqueView({
+      entityId: post.slug,
+      entityType: "news",
+      visitorHash: getVisitorHash(request),
+    });
+
+    response.json({ counted: result.counted, viewCount: result.count });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/actors/:id/view", (request, response, next) => {
+  try {
+    const actor = getActorById(request.params.id);
+
+    if (!actor) {
+      response.status(404).json({ error: "actor not found" });
+      return;
+    }
+
+    const result = recordUniqueView({
+      entityId: actor.id,
+      entityType: "actor",
+      visitorHash: getVisitorHash(request),
+    });
+
+    response.json({ counted: result.counted, viewCount: result.count });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/health", (_request, response) => {

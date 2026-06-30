@@ -59,6 +59,7 @@ db.exec(`
     payment_reference TEXT NOT NULL DEFAULT '',
     ai_bio TEXT NOT NULL DEFAULT '',
     ai_profile TEXT NOT NULL DEFAULT '{}',
+    view_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -148,8 +149,18 @@ db.exec(`
     published_at TEXT NOT NULL DEFAULT '',
     seo_title TEXT NOT NULL DEFAULT '',
     seo_description TEXT NOT NULL DEFAULT '',
+    view_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS unique_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('site', 'actor', 'news')),
+    entity_id TEXT NOT NULL DEFAULT '',
+    visitor_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(entity_type, entity_id, visitor_hash)
   );
 `);
 
@@ -182,9 +193,11 @@ for (const statement of [
   "ALTER TABLE actors ADD COLUMN payment_reference TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE actors ADD COLUMN ai_bio TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE actors ADD COLUMN ai_profile TEXT NOT NULL DEFAULT '{}'",
+  "ALTER TABLE actors ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE news_posts ADD COLUMN project_name TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE news_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
 ]) {
   try {
     db.prepare(statement).run();
@@ -246,6 +259,7 @@ if (actorTableSql().includes("'unpaid'") || actorTableSql().includes("'overdue'"
         payment_reference TEXT NOT NULL DEFAULT '',
         ai_bio TEXT NOT NULL DEFAULT '',
         ai_profile TEXT NOT NULL DEFAULT '{}',
+        view_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -256,7 +270,7 @@ if (actorTableSql().includes("'unpaid'") || actorTableSql().includes("'overdue'"
         special_skills, titles, browse_categories, medals, filmography, status, summary, photo, gallery, showreel, contact, rating, rating_count,
         admin_boost, profile_kind, featured_order, home_order, card_status, card_issued_at, card_expires_at, membership_status,
         annual_payment_status, annual_payment_date, payment_manual_confirmed, payment_provider, payment_reference,
-        ai_bio, ai_profile, created_at, updated_at
+        ai_bio, ai_profile, view_count, created_at, updated_at
       )
       SELECT
         id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres,
@@ -268,7 +282,7 @@ if (actorTableSql().includes("'unpaid'") || actorTableSql().includes("'overdue'"
           ELSE annual_payment_status
         END,
         annual_payment_date, payment_manual_confirmed, payment_provider, payment_reference,
-        ai_bio, ai_profile, created_at, updated_at
+        ai_bio, ai_profile, 0, created_at, updated_at
       FROM actors_old_payment_status;
     `);
     db.exec("DROP TABLE actors_old_payment_status");
@@ -319,12 +333,12 @@ const insertActor = db.prepare(`
     id, slug, initials, name, role, city, age_range, height, weight, hair_color, languages, skills, genres, special_skills, titles, browse_categories, medals, filmography,
     status, summary, ai_bio, ai_profile, photo, gallery, showreel, contact, rating, rating_count, admin_boost, profile_kind, featured_order, home_order,
     card_status, card_issued_at, card_expires_at, membership_status, annual_payment_status, annual_payment_date,
-    payment_manual_confirmed, payment_provider, payment_reference, updated_at
+    payment_manual_confirmed, payment_provider, payment_reference, view_count, updated_at
   ) VALUES (
     @id, @slug, @initials, @name, @role, @city, @ageRange, @height, @weight, @hairColor, @languages, @skills, @genres, @specialSkills, @titles, @browseCategories, @medals, @filmography,
     @status, @summary, @aiBio, @aiProfile, @photo, @gallery, @showreel, @contact, @rating, @ratingCount, @adminBoost, @profileKind, @featuredOrder, @homeOrder,
     @cardStatus, @cardIssuedAt, @cardExpiresAt, @membershipStatus, @annualPaymentStatus, @annualPaymentDate,
-    @paymentManualConfirmed, @paymentProvider, @paymentReference, CURRENT_TIMESTAMP
+    @paymentManualConfirmed, @paymentProvider, @paymentReference, @viewCount, CURRENT_TIMESTAMP
   )
   ON CONFLICT(id) DO UPDATE SET
     slug = excluded.slug,
@@ -417,6 +431,7 @@ export function toDbActor(actor) {
     paymentManualConfirmed: actor.paymentManualConfirmed ? 1 : 0,
     paymentProvider: ["manual", "online"].includes(actor.paymentProvider) ? actor.paymentProvider : "manual",
     paymentReference: actor.paymentReference ?? "",
+    viewCount: Number(actor.viewCount ?? 0),
   };
 }
 
@@ -463,6 +478,7 @@ export function fromDbActor(row) {
     paymentManualConfirmed: Boolean(row.payment_manual_confirmed),
     paymentProvider: row.payment_provider ?? "manual",
     paymentReference: row.payment_reference ?? "",
+    viewCount: row.view_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -756,6 +772,7 @@ function fromDbNewsPost(row) {
     publishedAt: row.published_at ?? "",
     seoTitle: row.seo_title ?? "",
     seoDescription: row.seo_description ?? "",
+    viewCount: row.view_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -830,4 +847,57 @@ export function saveNewsPost(post) {
 
 export function deleteNewsPost(id) {
   return db.prepare("DELETE FROM news_posts WHERE id = ?").run(id);
+}
+
+export function getSiteViewCount() {
+  return (
+    db
+      .prepare("SELECT COUNT(*) as count FROM unique_views WHERE entity_type = 'site' AND entity_id = ''")
+      .get().count ?? 0
+  );
+}
+
+export function recordUniqueView({ entityType, entityId = "", visitorHash }) {
+  const normalizedEntityType = ["site", "actor", "news"].includes(entityType) ? entityType : "";
+  const normalizedEntityId = normalizedEntityType === "site" ? "" : String(entityId ?? "");
+
+  if (!normalizedEntityType || !visitorHash) {
+    throw new Error("invalid unique view payload");
+  }
+
+  const result = db
+    .prepare(
+      `INSERT OR IGNORE INTO unique_views (entity_type, entity_id, visitor_hash)
+       VALUES (?, ?, ?)`,
+    )
+    .run(normalizedEntityType, normalizedEntityId, visitorHash);
+
+  if (result.changes && normalizedEntityType === "actor") {
+    db.prepare("UPDATE actors SET view_count = view_count + 1 WHERE id = ?").run(normalizedEntityId);
+  }
+
+  if (result.changes && normalizedEntityType === "news") {
+    db.prepare("UPDATE news_posts SET view_count = view_count + 1 WHERE slug = ?").run(normalizedEntityId);
+  }
+
+  if (normalizedEntityType === "site") {
+    return {
+      counted: result.changes > 0,
+      count: getSiteViewCount(),
+    };
+  }
+
+  if (normalizedEntityType === "actor") {
+    const actor = getActorById(normalizedEntityId);
+    return {
+      counted: result.changes > 0,
+      count: actor?.viewCount ?? 0,
+    };
+  }
+
+  const post = getNewsPostBySlug(normalizedEntityId);
+  return {
+    counted: result.changes > 0,
+    count: post?.viewCount ?? 0,
+  };
 }

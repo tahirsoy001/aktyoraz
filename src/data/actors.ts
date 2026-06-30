@@ -52,6 +52,7 @@ export type Actor = {
   paymentManualConfirmed?: boolean;
   paymentProvider?: "manual" | "online";
   paymentReference?: string;
+  viewCount?: number;
   createdAt?: string;
   updatedAt?: string;
 };

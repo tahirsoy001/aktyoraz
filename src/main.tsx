@@ -22,6 +22,7 @@ import {
   fetchAiIndexStatus,
   fetchApplications,
   fetchNewsFromApi,
+  fetchSiteViewCount,
   getActorCardPdfUrl,
   getActorQrSvgUrl,
   loginAdmin,
@@ -30,6 +31,9 @@ import {
   NewsPost,
   NewsPostInput,
   rateActorInApi,
+  recordActorProfileView,
+  recordNewsPostView,
+  recordSiteView,
   reindexAiProfiles,
   replaceActorsInApi,
   resetSeedInApi,
@@ -548,6 +552,7 @@ function normalizeActor(actor: Partial<Actor>): Actor {
     paymentManualConfirmed: actor.paymentManualConfirmed ?? fallback?.paymentManualConfirmed ?? false,
     paymentProvider: actor.paymentProvider ?? fallback?.paymentProvider ?? "manual",
     paymentReference: actor.paymentReference ?? fallback?.paymentReference ?? "",
+    viewCount: actor.viewCount ?? fallback?.viewCount ?? 0,
   };
 }
 
@@ -1200,7 +1205,8 @@ function OptimizedImage({
 }
 
 function MedalRulesLink({ compact = false }: { compact?: boolean }) {
-  const rulesText = ACTOR_MEDALS.map((medal) => `${medal.label}: ${medal.description}`).join("\n");
+  const rulesText =
+    "Medallar profilin təsdiqlənmiş istiqamətinə əsasən admin tərəfindən verilir. Ətraflı qaydalarla tanış olmaq üçün klikləyin.";
   const openRules = () => {
     window.location.href = "/about#medal-rules";
   };
@@ -1321,10 +1327,12 @@ function ActorCard({
 
 function HomePage({
   actors,
+  siteViewCount,
   shortlist,
   onToggleShortlist,
 }: {
   actors: Actor[];
+  siteViewCount: number;
   shortlist: string[];
   onToggleShortlist: (actorId: string) => void;
 }) {
@@ -1393,6 +1401,10 @@ function HomePage({
             <div>
               <strong><AnimatedCounter value={childActorCount} /></strong>
               <span>uşaq</span>
+            </div>
+            <div>
+              <strong><AnimatedCounter value={siteViewCount} /></strong>
+              <span>sayt ziyarəti</span>
             </div>
           </div>
         </div>
@@ -1826,6 +1838,7 @@ function NewsListPage({ posts }: { posts: NewsPost[] }) {
                   <div className="news-meta-row">
                     {post.projectName && <span>{post.projectName}</span>}
                     {post.publishedAt && <time>{formatNewsDate(post.publishedAt)}</time>}
+                    <span>{post.viewCount ?? 0} oxunma</span>
                   </div>
                   <h2>
                     <a href={`/news/${post.slug}`}>{post.title}</a>
@@ -1850,10 +1863,21 @@ function NewsListPage({ posts }: { posts: NewsPost[] }) {
 }
 
 function NewsDetailPage({ post }: { post: NewsPost }) {
+  const [viewCount, setViewCount] = useState(post.viewCount ?? 0);
   const paragraphs = post.content
     .split(/\n{2,}/)
     .map((item) => item.trim())
     .filter(Boolean);
+
+  useEffect(() => {
+    setViewCount(post.viewCount ?? 0);
+
+    recordNewsPostView(post.slug)
+      .then((result) => {
+        setViewCount(result.viewCount);
+      })
+      .catch(() => undefined);
+  }, [post.slug, post.viewCount]);
 
   return (
     <main className="page-shell">
@@ -1866,6 +1890,7 @@ function NewsDetailPage({ post }: { post: NewsPost }) {
           <div className="news-meta-row">
             {post.projectName && <span>{post.projectName}</span>}
             {post.publishedAt && <time>{formatNewsDate(post.publishedAt)}</time>}
+            <span>{viewCount} oxunma</span>
           </div>
           <h1>{post.title}</h1>
           <p className="lead">{post.excerpt}</p>
@@ -2531,6 +2556,17 @@ function ActorProfilePage({
 
   const ownVote = votes[actor.id];
   const contactLinks = getContactLinks(actor.contact);
+  const [profileViewCount, setProfileViewCount] = useState(actor.viewCount ?? 0);
+
+  useEffect(() => {
+    setProfileViewCount(actor.viewCount ?? 0);
+
+    recordActorProfileView(actor.id)
+      .then((result) => {
+        setProfileViewCount(result.viewCount);
+      })
+      .catch(() => undefined);
+  }, [actor.id, actor.viewCount]);
 
   return (
     <main className="page-shell">
@@ -2633,6 +2669,7 @@ function ActorProfilePage({
             <span className="badge rating-badge">
               ★ {effectiveRating(actor).toFixed(1)} · {actor.ratingCount} səs
             </span>
+            <span className="badge">{profileViewCount} profil baxışı</span>
             {actor.languages.map((language) => (
               <span className="badge" key={language}>
                 {language}
@@ -4523,6 +4560,7 @@ function App() {
   const [aiFeedback, setAiFeedback] = useState<AiCastingFeedback[]>([]);
   const [aiIndexStatus, setAiIndexStatus] = useState<AiIndexStatus | null>(null);
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
+  const [siteViewCount, setSiteViewCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">("loading");
   const path = window.location.pathname;
 
@@ -4530,6 +4568,20 @@ function App() {
     setAdminSession(null);
     saveAdminSession(null);
   }
+
+  useEffect(() => {
+    recordSiteView()
+      .then((result) => {
+        setSiteViewCount(result.count);
+      })
+      .catch(() => {
+        fetchSiteViewCount()
+          .then(setSiteViewCount)
+          .catch(() => {
+            setSiteViewCount(0);
+          });
+      });
+  }, []);
 
   useEffect(() => {
     fetchNewsFromApi()
@@ -4877,6 +4929,7 @@ function App() {
     return (
       <HomePage
         actors={actors}
+        siteViewCount={siteViewCount}
         onToggleShortlist={toggleShortlist}
         shortlist={shortlist}
       />
