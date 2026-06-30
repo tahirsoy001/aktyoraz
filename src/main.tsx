@@ -1240,26 +1240,31 @@ function ActorMedals({
     const primaryMedal = medals[0];
 
     return (
-      <div className="actor-medals compact" aria-label="Aktyor medalları">
-        <span className="actor-medal compact-trigger" title={primaryMedal.label}>
-          <strong>{primaryMedal.shortLabel}</strong>
-          <span>{medals.length > 1 ? `${medals.length} medal` : primaryMedal.label}</span>
-        </span>
+      <>
+        <div className="actor-medals compact" aria-label="Aktyor medalları">
+          <span className="actor-medal compact-trigger" aria-label={primaryMedal.label}>
+            <strong>{primaryMedal.shortLabel}</strong>
+            <span>{medals.length > 1 ? `${medals.length} medal` : primaryMedal.label}</span>
+          </span>
+        </div>
         <MedalRulesLink compact />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className={variant === "inline" ? "actor-medals inline" : "actor-medals overlay"} aria-label="Aktyor medalları">
-      {medals.map((medal) => (
-        <span className="actor-medal" data-label={medal.label} key={medal.id} title={medal.label}>
-          <strong>{medal.shortLabel}</strong>
-          <span>{medal.label}</span>
-        </span>
-      ))}
-      <MedalRulesLink />
-    </div>
+    <>
+      <div className={variant === "inline" ? "actor-medals inline" : "actor-medals overlay"} aria-label="Aktyor medalları">
+        {medals.map((medal) => (
+          <span className="actor-medal" data-label={medal.label} key={medal.id} title={medal.label}>
+            <strong>{medal.shortLabel}</strong>
+            <span>{medal.label}</span>
+          </span>
+        ))}
+        {variant === "inline" && <MedalRulesLink />}
+      </div>
+      {variant !== "inline" && <MedalRulesLink />}
+    </>
   );
 }
 
