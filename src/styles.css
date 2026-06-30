@@ -87,15 +87,16 @@ textarea {
 .brand {
   align-items: center;
   display: inline-flex;
-  gap: 14px;
+  gap: 13px;
   letter-spacing: 0;
 }
 
 .brand-mark {
+  border-radius: 13px;
   display: block;
-  filter: drop-shadow(0 8px 16px rgba(17, 24, 39, 0.12));
-  height: auto;
-  width: clamp(116px, 11vw, 150px);
+  filter: drop-shadow(0 10px 18px rgba(var(--accent-rgb), 0.22));
+  height: clamp(46px, 4.2vw, 58px);
+  width: clamp(46px, 4.2vw, 58px);
 }
 
 .brand-divider {
@@ -3085,7 +3086,8 @@ h1 {
   }
 
   .brand-mark {
-    width: 104px;
+    height: 46px;
+    width: 46px;
   }
 
   .brand-divider {

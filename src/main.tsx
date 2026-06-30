@@ -1113,7 +1113,7 @@ function Header() {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-        <img className="brand-mark" src="/aaab-logo.svg" alt="AAAb" width="140" height="49" />
+        <img className="brand-mark" src="/favicon.svg" alt="Aktyor.az" width="56" height="56" />
         <span className="brand-divider" aria-hidden="true" />
         <span className="brand-text">
           <span>Azərbaycan Aktyor</span>
