@@ -1425,7 +1425,7 @@ function HomePage({
             </div>
             <div>
               <strong><AnimatedCounter value={siteViewCount} /></strong>
-              <span>sayt ziyarəti</span>
+              <span>ziyarət</span>
             </div>
           </div>
         </div>
@@ -1504,7 +1504,7 @@ function HomePage({
 
       <section className="section home-results">
         <div className="section-header">
-          <h2>Ən reytinqli profillər</h2>
+          <h2>Profillər</h2>
           <span>{filteredActors.length} nəticə</span>
         </div>
         <div className="actor-grid">
