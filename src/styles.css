@@ -1083,15 +1083,23 @@ h1 {
 }
 
 .actor-medals.overlay {
+  bottom: 10px;
   left: 10px;
   max-width: calc(100% - 20px);
   position: absolute;
-  top: 10px;
   z-index: 3;
 }
 
 .actor-medals.inline {
   margin: 12px 0 4px;
+}
+
+.actor-medals.compact {
+  bottom: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  position: absolute;
+  z-index: 4;
 }
 
 .actor-medal {
@@ -1132,8 +1140,12 @@ h1 {
   display: inline;
 }
 
-.actor-medal:hover::after,
-.actor-medal:focus-visible::after {
+.actor-medals.compact .actor-medal > span {
+  display: inline;
+}
+
+.actor-medal:not(.compact-trigger):hover::after,
+.actor-medal:not(.compact-trigger):focus-visible::after {
   background: #111827;
   border-radius: 6px;
   bottom: calc(100% + 8px);
@@ -1156,6 +1168,68 @@ h1 {
   flex: 0 0 auto;
   justify-content: center;
   min-width: 36px;
+}
+
+.compact-trigger {
+  backdrop-filter: blur(14px);
+  background: rgba(141, 40, 228, 0.88);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.medal-popover {
+  background: rgba(17, 24, 39, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  bottom: calc(100% + 10px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  display: none;
+  gap: 8px;
+  left: 0;
+  min-width: 260px;
+  padding: 10px;
+  position: absolute;
+  z-index: 30;
+}
+
+.actor-medals.compact:hover .medal-popover,
+.actor-medals.compact:focus-within .medal-popover {
+  display: grid;
+}
+
+.medal-popover-item {
+  align-items: flex-start;
+  color: #ffffff;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 1fr;
+}
+
+.medal-popover-item strong {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 10px;
+  height: 24px;
+  justify-content: center;
+  min-width: 24px;
+  padding: 0 5px;
+}
+
+.medal-popover-item b,
+.medal-popover-item small {
+  display: block;
+}
+
+.medal-popover-item b {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.medal-popover-item small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .actor-info {

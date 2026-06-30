@@ -1130,11 +1130,44 @@ function Portrait({ actor }: { actor: Actor }) {
   return <div className="portrait">{actor.initials}</div>;
 }
 
-function ActorMedals({ actor, variant = "overlay" }: { actor: Actor; variant?: "overlay" | "inline" }) {
+function ActorMedals({
+  actor,
+  variant = "overlay",
+}: {
+  actor: Actor;
+  variant?: "overlay" | "inline" | "compact";
+}) {
   const medals = ACTOR_MEDALS.filter((medal) => actor.medals?.includes(medal.id));
 
   if (!medals.length) {
     return null;
+  }
+
+  if (variant === "compact") {
+    const primaryMedal = medals[0];
+
+    return (
+      <div className="actor-medals compact" aria-label="Aktyor medalları">
+        <span
+          className="actor-medal compact-trigger"
+          title={medals.map((medal) => `${medal.label}: ${medal.description}`).join("\n")}
+        >
+          <strong>{primaryMedal.shortLabel}</strong>
+          <span>{medals.length > 1 ? `${medals.length} medal` : primaryMedal.label}</span>
+        </span>
+        <div className="medal-popover" aria-hidden="true">
+          {medals.map((medal) => (
+            <span className="medal-popover-item" key={medal.id}>
+              <strong>{medal.shortLabel}</strong>
+              <span>
+                <b>{medal.label}</b>
+                <small>{medal.description}</small>
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1426,7 +1459,7 @@ function ActorsPage({
       return (
         <>
           <img src={actor.photo} alt={actor.name} />
-          <ActorMedals actor={actor} />
+          <ActorMedals actor={actor} variant="compact" />
         </>
       );
     }
@@ -1434,7 +1467,7 @@ function ActorsPage({
     return (
       <>
         <span>{actor.initials}</span>
-        <ActorMedals actor={actor} />
+        <ActorMedals actor={actor} variant="compact" />
       </>
     );
   }
