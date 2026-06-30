@@ -621,7 +621,11 @@ function getTopActors(actorList: Actor[]) {
   return [...manualActors, ...fallbackActors].slice(0, 5);
 }
 
-function getHomeCollageActors(actorList: Actor[]) {
+function randomizeActorPool(actorList: Actor[]) {
+  return [...actorList].sort(() => Math.random() - 0.5);
+}
+
+function getHomeCollageActors(actorList: Actor[], randomize = false) {
   const rankedActors = sortByRating(actorList);
   const manualActors = rankedActors
     .filter((actor) => actor.homeOrder && actor.homeOrder >= 1 && actor.homeOrder <= 6)
@@ -629,7 +633,17 @@ function getHomeCollageActors(actorList: Actor[]) {
   const manualIds = new Set(manualActors.map((actor) => actor.id));
   const fallbackActors = rankedActors.filter((actor) => !manualIds.has(actor.id));
 
-  return [...manualActors, ...fallbackActors].slice(0, 6);
+  if (!randomize) {
+    return [...manualActors, ...fallbackActors].slice(0, 6);
+  }
+
+  const randomManualActors = randomizeActorPool(manualActors);
+
+  if (randomManualActors.length >= 6) {
+    return randomManualActors.slice(0, 6);
+  }
+
+  return [...randomManualActors, ...randomizeActorPool(fallbackActors)].slice(0, 6);
 }
 
 function actorMatchesQuery(actor: Actor, query: string) {
@@ -1339,14 +1353,25 @@ function HomePage({
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("");
   const [city, setCity] = useState("");
-  const publicActors = sortByRating(actors.filter((actor) => actor.status !== "inactive"));
+  const publicActors = useMemo(
+    () => sortByRating(actors.filter((actor) => actor.status !== "inactive")),
+    [actors],
+  );
+  const homeRandomRanks = useMemo(
+    () => new Map(publicActors.map((actor) => [actor.id, Math.random()])),
+    [publicActors],
+  );
   const filteredActors = publicActors.filter(
     (actor) =>
       actorMatchesQuery(actor, query) &&
       (!role || actor.role === role) &&
       (!city || actor.city === city),
   );
-  const collageActors = getHomeCollageActors(publicActors);
+  const randomizedFilteredActors = [...filteredActors].sort(
+    (first, second) =>
+      (homeRandomRanks.get(first.id) ?? 0) - (homeRandomRanks.get(second.id) ?? 0),
+  );
+  const collageActors = useMemo(() => getHomeCollageActors(publicActors, true), [publicActors]);
   const verifiedCount = actors.filter((actor) => actor.status === "verified").length;
   const actorCount = publicActors.filter((actor) => actor.role.toLowerCase() === "aktyor").length;
   const actressCount = publicActors.filter((actor) => actor.role.toLowerCase() === "aktrisa").length;
@@ -1381,10 +1406,6 @@ function HomePage({
             <div>
               <strong><AnimatedCounter value={actors.length} /></strong>
               <span>profil</span>
-            </div>
-            <div>
-              <strong><AnimatedCounter value={verifiedCount} /></strong>
-              <span>təsdiqli</span>
             </div>
             <div>
               <strong><AnimatedCounter value={shortlist.length} /></strong>
@@ -1487,7 +1508,7 @@ function HomePage({
           <span>{filteredActors.length} nəticə</span>
         </div>
         <div className="actor-grid">
-          {filteredActors.map((actor) => (
+          {randomizedFilteredActors.map((actor) => (
             <ActorCard
               actor={actor}
               isShortlisted={shortlist.includes(actor.id)}
