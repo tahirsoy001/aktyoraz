@@ -16,6 +16,10 @@ export type Actor = {
   titles?: string[];
   browseCategories?: string[];
   medals?: string[];
+  filmography?: Array<{
+    project: string;
+    role: string;
+  }>;
   status: "verified" | "review" | "inactive";
   summary: string;
   aiBio?: string;

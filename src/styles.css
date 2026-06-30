@@ -1486,6 +1486,57 @@ h1 {
   font-size: 16px;
 }
 
+.filmography-panel {
+  margin-top: 28px;
+}
+
+.section-heading-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-heading-row h2 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.section-heading-row span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.filmography-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.filmography-item {
+  align-items: center;
+  background: #ffffff;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  padding: 14px 16px;
+}
+
+.filmography-item + .filmography-item {
+  border-top: 1px solid var(--line);
+}
+
+.filmography-item strong {
+  color: var(--ink);
+}
+
+.filmography-item span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .verified-card {
   background: #ffffff;
   border: 1px solid var(--line);
@@ -3163,7 +3214,8 @@ h1 {
   .admin-stats,
   .verification-grid,
   .profile-detail-grid,
-  .mini-meta-grid {
+  .mini-meta-grid,
+  .filmography-item {
     grid-template-columns: 1fr;
   }
 

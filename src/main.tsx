@@ -58,7 +58,7 @@ const ACTOR_MEDALS = [
     id: "disciplined",
     label: "Disiplinli aktyor",
     shortLabel: "D",
-    description: "Vaxta, tapşırıqlara və çəkiliş qaydalarına ciddi yanaşan aktyor.",
+    description: "Rejissor geridönüşü və çəkilişə verdiyimiz aktyorlar üzrə sonrakı anket nəticələri əsasında verilir.",
   },
   {
     id: "educated",
@@ -70,19 +70,37 @@ const ACTOR_MEDALS = [
     id: "experienced",
     label: "Təcrübəli aktyor",
     shortLabel: "XP",
-    description: "Kamera, səhnə və ya layihə təcrübəsi yüksək olan aktyor.",
+    description: "5+ tammetrajlı film və ya serial layihəsində baş obraz, əsas obraz və ya mühüm ekran rolu oynamış aktyor.",
   },
   {
     id: "team-player",
     label: "Komanda işində effektli",
     shortLabel: "K",
-    description: "Rejissor, prodüser və çəkiliş komandası ilə effektiv işləyən aktyor.",
+    description: "Rejissor və çəkiliş komandası geridönüşü, həmçinin çəkilişdən sonra aparılan anket əsasında verilir.",
   },
   {
     id: "multiskilled",
     label: "Çoxşaxəli",
     shortLabel: "Ç",
-    description: "Aktyorluqla yanaşı montaj, ssenari və digər kino ixtisaslarını da anlayır.",
+    description: "Aktyorun şifahi iqrarı və montaj, ssenari və digər kino ixtisaslarını sübut edən portfolio əsasında verilir.",
+  },
+  {
+    id: "screen-actor",
+    label: "Kino aktyoru",
+    shortLabel: "KA",
+    description: "Kamera qarşısında oyun təcrübəsi, film/serial/reklam çəkilişləri və ekran performansı əsasında verilir.",
+  },
+  {
+    id: "stage-actor",
+    label: "Teatr aktyoru",
+    shortLabel: "TA",
+    description: "Teatr səhnəsi, canlı performans, səhnə nitqi və tamaşa təcrübəsi əsasında verilir.",
+  },
+  {
+    id: "viral-actor",
+    label: "Viral aktyor",
+    shortLabel: "V",
+    description: "Sosial mediada və ya rəqəmsal platformalarda geniş yayılmış, tanınma yaratmış performanslara görə verilir.",
   },
 ] as const;
 
@@ -346,6 +364,7 @@ type ActorForm = {
   titles: string;
   browseCategories: string;
   medals: ActorMedalId[];
+  filmography: string;
   status: Actor["status"];
   summary: string;
   aiBio: string;
@@ -393,6 +412,7 @@ const emptyForm: ActorForm = {
   titles: "",
   browseCategories: "",
   medals: [],
+  filmography: "",
   status: "review",
   summary: "",
   aiBio: "",
@@ -490,6 +510,7 @@ function normalizeActor(actor: Partial<Actor>): Actor {
     titles: actor.titles ?? fallback?.titles ?? [],
     browseCategories: actor.browseCategories ?? fallback?.browseCategories ?? [],
     medals: (actor.medals ?? fallback?.medals ?? []).filter((medal) => ACTOR_MEDAL_IDS.has(medal)),
+    filmography: actor.filmography ?? fallback?.filmography ?? [],
     status: actor.status ?? fallback?.status ?? "review",
     summary: actor.summary ?? fallback?.summary ?? "",
     aiBio: actor.aiBio ?? fallback?.aiBio ?? "",
@@ -891,6 +912,28 @@ function makeId(existingActors: Actor[]) {
   return `AAAB-${String(nextNumber).padStart(6, "0")}`;
 }
 
+function parseFilmography(value: string): NonNullable<Actor["filmography"]> {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [project, ...roleParts] = line.split(/\s+[—-]\s+/);
+
+      return {
+        project: project.trim(),
+        role: roleParts.join(" - ").trim(),
+      };
+    })
+    .filter((item) => item.project);
+}
+
+function stringifyFilmography(filmography: Actor["filmography"]) {
+  return (filmography ?? [])
+    .map((item) => (item.role ? `${item.project} — ${item.role}` : item.project))
+    .join("\n");
+}
+
 function formToActor(form: ActorForm, existingActors: Actor[], currentId?: string): Actor {
   const id = currentId ?? makeId(existingActors);
   const slugBase = slugify(form.name) || id.toLowerCase();
@@ -921,6 +964,7 @@ function formToActor(form: ActorForm, existingActors: Actor[], currentId?: strin
     titles: splitList(form.titles),
     browseCategories: splitList(form.browseCategories),
     medals: form.medals,
+    filmography: parseFilmography(form.filmography),
     status: form.status,
     summary: form.summary.trim(),
     aiBio: form.aiBio.trim(),
@@ -981,6 +1025,7 @@ function actorToForm(actor: Actor): ActorForm {
     titles: (actor.titles ?? []).join(", "),
     browseCategories: (actor.browseCategories ?? []).join(", "),
     medals: (actor.medals ?? []).filter((medal) => ACTOR_MEDAL_IDS.has(medal)) as ActorMedalId[],
+    filmography: stringifyFilmography(actor.filmography),
     status: actor.status,
     summary: actor.summary,
     aiBio: actor.aiBio ?? "",
@@ -2537,6 +2582,22 @@ function ActorProfilePage({
               <strong>{actor.status === "verified" ? "Təsdiqlənmiş" : "Yoxlanılır"}</strong>
             </div>
           </div>
+          {actor.filmography?.length ? (
+            <section className="filmography-panel" aria-label="Filmoqrafiya">
+              <div className="section-heading-row">
+                <h2>Filmoqrafiya</h2>
+                <span>{actor.filmography.length} layihə</span>
+              </div>
+              <div className="filmography-list">
+                {actor.filmography.map((item, index) => (
+                  <div className="filmography-item" key={`${item.project}-${item.role}-${index}`}>
+                    <strong>{item.project}</strong>
+                    <span>{item.role || "Obraz qeyd edilməyib"}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
           {actor.gallery?.length ? (
             <div className="profile-gallery">
               {actor.gallery.map((photoUrl) => (
@@ -3039,6 +3100,7 @@ function AdminPage({
       initials: makeInitials(application.name),
       languages: application.languages,
       medals: [],
+      filmography: [],
       membershipStatus: "pending",
       name: application.name,
       paymentManualConfirmed: false,
@@ -3558,7 +3620,7 @@ function AdminPage({
           <div className="admin-medal-field">
             <div>
               <strong>Admin medalları</strong>
-              <p>Bu medalları yalnız admin verir. Kartda şəklin üstündə, profildə isə ayrıca görünür.</p>
+              <p>Bu medalları yalnız admin verir. Qazanma qaydası medalın izahında göstərilir.</p>
             </div>
             <div className="admin-medal-grid">
               {ACTOR_MEDALS.map((medal) => (
@@ -3579,6 +3641,15 @@ function AdminPage({
               ))}
             </div>
           </div>
+          <label>
+            Filmoqrafiya
+            <textarea
+              onChange={(event) => updateForm("filmography", event.target.value)}
+              placeholder={"Hər sətrə belə yazın: Film və ya serial adı — Obraz\nMəsələn: Domino daşları — Anar"}
+              rows={5}
+              value={form.filmography}
+            />
+          </label>
           <label>
             Baza slide kateqoriyaları
             <input
