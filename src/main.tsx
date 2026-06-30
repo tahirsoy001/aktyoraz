@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, StrictMode, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, ImgHTMLAttributes, StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AdminSession,
@@ -1113,7 +1113,7 @@ function Header() {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-        <img className="brand-mark" src="/favicon.svg" alt="Aktyor.az" width="56" height="56" />
+        <OptimizedImage className="brand-mark" src="/favicon.svg" alt="Aktyor.az" loading="eager" width="56" height="56" />
         <span className="brand-divider" aria-hidden="true" />
         <span className="brand-text">
           <span>Azərbaycan Aktyor</span>
@@ -1186,10 +1186,17 @@ function shuffleActors(actors: Actor[], randomRanks: Map<string, number>) {
 
 function Portrait({ actor }: { actor: Actor }) {
   if (actor.photo) {
-    return <img className="portrait photo" src={actor.photo} alt={actor.name} />;
+    return <OptimizedImage className="portrait photo" src={actor.photo} alt={actor.name} />;
   }
 
   return <div className="portrait">{actor.initials}</div>;
+}
+
+function OptimizedImage({
+  loading = "lazy",
+  ...props
+}: ImgHTMLAttributes<HTMLImageElement>) {
+  return <img decoding="async" loading={loading} {...props} />;
 }
 
 function MedalRulesLink({ compact = false }: { compact?: boolean }) {
@@ -1398,7 +1405,7 @@ function HomePage({
               key={actor.id}
             >
               {actor.photo ? (
-                <img src={actor.photo} alt={actor.name} />
+                <OptimizedImage src={actor.photo} alt={actor.name} loading={index < 2 ? "eager" : "lazy"} />
               ) : (
                 <span className="collage-initials">{actor.initials}</span>
               )}
@@ -1543,7 +1550,7 @@ function ActorsPage({
     if (actor.photo) {
       return (
         <>
-          <img src={actor.photo} alt={actor.name} />
+          <OptimizedImage src={actor.photo} alt={actor.name} loading="eager" />
           <ActorMedals actor={actor} variant="compact" />
         </>
       );
@@ -1785,7 +1792,7 @@ function getAdminRequestErrorMessage(error: unknown, fallback: string) {
 
 function NewsCover({ post }: { post: NewsPost }) {
   if (post.coverImage) {
-    return <img src={post.coverImage} alt={post.title} />;
+    return <OptimizedImage src={post.coverImage} alt={post.title} />;
   }
 
   return (
@@ -2569,9 +2576,10 @@ function ActorProfilePage({
                 <span>Saç</span>
               </div>
             </div>
-            <img
+            <OptimizedImage
               alt={`${actor.name} Aktyor.az QR`}
               className="qr-image compact"
+              loading="eager"
               src={getActorQrSvgUrl(actor.id)}
             />
           </div>
@@ -2696,7 +2704,7 @@ function ActorProfilePage({
           {actor.gallery?.length ? (
             <div className="profile-gallery">
               {actor.gallery.map((photoUrl) => (
-                <img alt={`${actor.name} qalereya fotosu`} key={photoUrl} src={photoUrl} />
+                <OptimizedImage alt={`${actor.name} qalereya fotosu`} key={photoUrl} src={photoUrl} />
               ))}
             </div>
           ) : null}
@@ -2746,9 +2754,10 @@ function VerificationPage({ actors, id }: { actors: Actor[]; id: string }) {
             <p>
               {actor.role} · {actor.city}
             </p>
-            <img
+            <OptimizedImage
               alt={`${actor.name} Aktyor.az QR`}
               className="qr-image"
+              loading="eager"
               src={getActorQrSvgUrl(actor.id)}
             />
             <p className="qr-caption">Seriya nömrəsi: {actor.id}</p>
@@ -3870,7 +3879,7 @@ function AdminPage({
           {uploadError && <div className="form-error">{uploadError}</div>}
           {form.photo && (
             <div className="photo-preview">
-              <img alt="Profil fotosu" src={form.photo} />
+              <OptimizedImage alt="Profil fotosu" src={form.photo} />
               <button className="button secondary" onClick={() => updateForm("photo", "")} type="button">
                 Fotonu sil
               </button>
@@ -3884,7 +3893,7 @@ function AdminPage({
             <div className="gallery-preview">
               {form.gallery.split("\n").filter(Boolean).map((photoUrl) => (
                 <div className="gallery-preview-item" key={photoUrl}>
-                  <img alt="Qalereya fotosu" src={photoUrl} />
+                  <OptimizedImage alt="Qalereya fotosu" src={photoUrl} />
                   <button
                     className="button secondary"
                     onClick={() =>
@@ -4014,7 +4023,7 @@ function AdminPage({
           </div>
           {newsForm.coverImage && (
             <div className="photo-preview">
-              <img alt="Xəbər cover" src={newsForm.coverImage} />
+              <OptimizedImage alt="Xəbər cover" src={newsForm.coverImage} />
               <button className="button secondary" onClick={() => updateNewsForm("coverImage", "")} type="button">
                 Şəkli sil
               </button>
@@ -4084,7 +4093,7 @@ function AdminPage({
             mediaFiles.map((file) => (
               <article className="media-card" key={file.filename}>
                 <a className="media-thumb" href={file.url} target="_blank" rel="noreferrer">
-                  <img alt={file.filename} src={file.url} />
+                  <OptimizedImage alt={file.filename} src={file.url} />
                 </a>
                 <div className="media-card-body">
                   <strong title={file.filename}>{file.filename}</strong>
@@ -4135,7 +4144,7 @@ function AdminPage({
             applications.map((application) => (
               <div className="application-row" key={application.id}>
                 {application.photo ? (
-                  <img alt={application.name} src={application.photo} />
+                  <OptimizedImage alt={application.name} src={application.photo} />
                 ) : (
                   <div className="application-avatar">{makeInitials(application.name)}</div>
                 )}

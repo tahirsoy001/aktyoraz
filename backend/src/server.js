@@ -115,7 +115,15 @@ seedDefaultAdmin();
 
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: "8mb" }));
-app.use("/uploads", express.static(uploadDir));
+app.use(
+  "/uploads",
+  express.static(uploadDir, {
+    etag: true,
+    immutable: true,
+    lastModified: true,
+    maxAge: "30d",
+  }),
+);
 
 if (isProduction) {
   app.set("trust proxy", 1);

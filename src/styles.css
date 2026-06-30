@@ -746,6 +746,8 @@ h1 {
   background: #18181b;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: 440px 240px;
   overflow: hidden;
   scroll-snap-align: start;
   transform: translateY(0);
@@ -974,6 +976,8 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 1px 0 rgba(17, 24, 39, 0.03);
+  content-visibility: auto;
+  contain-intrinsic-size: 420px 320px;
   overflow: hidden;
   transform: translateY(0);
   transition:
@@ -2369,6 +2373,8 @@ h1 {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: 320px 360px;
   display: grid;
   overflow: hidden;
 }
@@ -2715,6 +2721,8 @@ h1 {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: 360px 420px;
   overflow: hidden;
   transition:
     box-shadow 180ms ease,
