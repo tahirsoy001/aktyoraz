@@ -1126,9 +1126,12 @@ h1 {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   display: inline-flex;
-  font-size: 10px;
+  font-family: "Arial Black", Arial, Helvetica, sans-serif;
+  font-size: 9px;
+  font-weight: 900;
   height: 18px;
   justify-content: center;
+  letter-spacing: 0;
   min-width: 18px;
   padding: 0 4px;
 }

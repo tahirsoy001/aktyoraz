@@ -1247,7 +1247,6 @@ function ActorMedals({
             <span>{medals.length > 1 ? `${medals.length} medal` : primaryMedal.label}</span>
           </span>
         </div>
-        <MedalRulesLink compact />
       </>
     );
   }
