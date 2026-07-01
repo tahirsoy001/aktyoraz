@@ -857,6 +857,25 @@ export function getSiteViewCount() {
   );
 }
 
+function getSiteViewCountSince(modifier) {
+  return (
+    db
+      .prepare(
+        "SELECT COUNT(*) as count FROM unique_views WHERE entity_type = 'site' AND entity_id = '' AND created_at >= datetime('now', ?)",
+      )
+      .get(modifier).count ?? 0
+  );
+}
+
+export function getSiteViewStats() {
+  return {
+    daily: getSiteViewCountSince("-1 day"),
+    monthly: getSiteViewCountSince("-30 days"),
+    total: getSiteViewCount(),
+    weekly: getSiteViewCountSince("-7 days"),
+  };
+}
+
 export function recordUniqueView({ entityType, entityId = "", visitorHash }) {
   const normalizedEntityType = ["site", "actor", "news"].includes(entityType) ? entityType : "";
   const normalizedEntityId = normalizedEntityType === "site" ? "" : String(entityId ?? "");
@@ -883,7 +902,7 @@ export function recordUniqueView({ entityType, entityId = "", visitorHash }) {
   if (normalizedEntityType === "site") {
     return {
       counted: result.changes > 0,
-      count: getSiteViewCount(),
+      stats: getSiteViewStats(),
     };
   }
 

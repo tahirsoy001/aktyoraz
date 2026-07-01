@@ -148,6 +148,13 @@ export type MediaFile = {
   url: string;
 };
 
+export type SiteViewStats = {
+  daily: number;
+  monthly: number;
+  total: number;
+  weekly: number;
+};
+
 export async function fetchActorsFromApi() {
   const data = await request<{ actors: Actor[] }>("/actors");
   return data.actors;
@@ -164,12 +171,11 @@ export async function fetchNewsPostFromApi(slug: string) {
 }
 
 export async function fetchSiteViewCount() {
-  const data = await request<{ count: number }>("/analytics/site");
-  return data.count;
+  return request<SiteViewStats>("/analytics/site");
 }
 
 export async function recordSiteView() {
-  return request<{ counted: boolean; count: number }>("/analytics/site/view", {
+  return request<SiteViewStats & { counted: boolean }>("/analytics/site/view", {
     method: "POST",
   });
 }

@@ -2835,6 +2835,16 @@ h1 {
   margin: 0 0 22px;
 }
 
+.inline-profile-link {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.inline-profile-link:hover {
+  text-decoration: underline;
+}
+
 .about-hero {
   background:
     linear-gradient(120deg, rgba(var(--accent-rgb), 0.1), transparent 48%),

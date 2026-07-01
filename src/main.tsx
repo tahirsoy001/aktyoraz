@@ -38,6 +38,7 @@ import {
   replaceActorsInApi,
   resetSeedInApi,
   saveAdminNewsPost,
+  SiteViewStats,
   updateApplicationStatus,
   uploadActorPhoto,
 } from "@/api";
@@ -51,6 +52,12 @@ const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
 const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
 const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "media", "applications", "payments", "audit"] as const;
+const EMPTY_SITE_VIEW_STATS: SiteViewStats = {
+  daily: 0,
+  monthly: 0,
+  total: 0,
+  weekly: 0,
+};
 const SITE_URL =
   import.meta.env.VITE_SITE_URL ??
   (typeof window !== "undefined" ? window.location.origin : "http://localhost:3010");
@@ -1341,12 +1348,12 @@ function ActorCard({
 
 function HomePage({
   actors,
-  siteViewCount,
+  siteViewStats,
   shortlist,
   onToggleShortlist,
 }: {
   actors: Actor[];
-  siteViewCount: number;
+  siteViewStats: SiteViewStats;
   shortlist: string[];
   onToggleShortlist: (actorId: string) => void;
 }) {
@@ -1424,8 +1431,8 @@ function HomePage({
               <span>uşaq</span>
             </div>
             <div>
-              <strong><AnimatedCounter value={siteViewCount} /></strong>
-              <span>ziyarət</span>
+              <strong><AnimatedCounter value={siteViewStats.monthly} /></strong>
+              <span>30 gün</span>
             </div>
           </div>
         </div>
@@ -1883,7 +1890,39 @@ function NewsListPage({ posts }: { posts: NewsPost[] }) {
   );
 }
 
-function NewsDetailPage({ post }: { post: NewsPost }) {
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderNewsParagraph(paragraph: string, actors: Actor[]) {
+  const linkableActors = actors
+    .filter((actor) => actor.status !== "inactive")
+    .sort((first, second) => second.name.length - first.name.length);
+
+  if (!linkableActors.length) {
+    return paragraph;
+  }
+
+  const actorByName = new Map(linkableActors.map((actor) => [actor.name.toLocaleLowerCase("az"), actor]));
+  const pattern = new RegExp(`(${linkableActors.map((actor) => escapeRegex(actor.name)).join("|")})`, "giu");
+  const parts = paragraph.split(pattern).filter((part) => part.length > 0);
+
+  return parts.map((part, index) => {
+    const actor = actorByName.get(part.toLocaleLowerCase("az"));
+
+    if (!actor) {
+      return part;
+    }
+
+    return (
+      <a className="inline-profile-link" href={`/actors/${actor.slug}`} key={`${actor.id}-${index}`}>
+        {part}
+      </a>
+    );
+  });
+}
+
+function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
   const [viewCount, setViewCount] = useState(post.viewCount ?? 0);
   const paragraphs = post.content
     .split(/\n{2,}/)
@@ -1921,7 +1960,7 @@ function NewsDetailPage({ post }: { post: NewsPost }) {
         </div>
         <div className="news-content">
           {paragraphs.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
+            <p key={paragraph}>{renderNewsParagraph(paragraph, actors)}</p>
           ))}
         </div>
       </article>
@@ -2806,7 +2845,7 @@ function VerificationPage({ actors, id }: { actors: Actor[]; id: string }) {
           <Portrait actor={actor} />
           <div className="verified-body">
             <p className={cardState.isActive ? "status" : "status warning-text"}>
-              {cardState.isActive ? "Aktiv və təsdiqlənmiş Aktyor.az ID" : cardState.reason}
+              {cardState.isActive ? "Aktiv və təsdiqlənmiş Aktyor.az ID" : "Deaktiv Aktyor.az ID"}
             </p>
             <h1>{actor.name}</h1>
             <p>
@@ -2835,16 +2874,7 @@ function VerificationPage({ actors, id }: { actors: Actor[]; id: string }) {
             <span className={cardState.isActive ? "badge success" : "badge warning"}>
               Kart: {cardState.isActive ? "aktivdir" : "deaktivdir"}
             </span>
-            <span className="badge">Üzvlük: {actor.membershipStatus ?? "active"}</span>
-            <span className={(actor.annualPaymentStatus ?? "paid") === "paid" ? "badge success" : "badge warning"}>
-              İllik ödəniş: {actor.annualPaymentStatus ?? "paid"}
-            </span>
-            {actor.annualPaymentDate && <span className="badge">Ödəniş tarixi: {actor.annualPaymentDate}</span>}
-            <span className={actor.paymentManualConfirmed || actor.paymentProvider === "online" ? "badge success" : "badge warning"}>
-              Təsdiq: {actor.paymentManualConfirmed ? "manual" : actor.paymentProvider === "online" ? "online" : "yoxdur"}
-            </span>
-            {actor.cardIssuedAt && <span className="badge">Verilib: {actor.cardIssuedAt}</span>}
-            {actor.cardExpiresAt && <span className={cardState.expired ? "badge warning" : "badge"}>Bitir: {actor.cardExpiresAt}</span>}
+            {actor.cardIssuedAt && <span className="badge">Qeydiyyat tarixi: {actor.cardIssuedAt}</span>}
             <span className="badge rating-badge">★ {effectiveRating(actor).toFixed(1)}</span>
             <span className="badge">Yaş aralığı: {actor.ageRange}</span>
             <span className="badge">Boy: {actor.height}</span>
@@ -2861,24 +2891,12 @@ function VerificationPage({ actors, id }: { actors: Actor[]; id: string }) {
               <span>{actor.status === "verified" ? "Təsdiqlənib" : "Yoxlanılır"}</span>
             </div>
             <div>
-              <strong>Kart yoxlaması</strong>
-              <span>{cardState.isActive ? "Aktivdir" : cardState.reason}</span>
+              <strong>Kart statusu</strong>
+              <span>{cardState.isActive ? "Aktivdir" : "Deaktivdir"}</span>
             </div>
             <div>
-              <strong>Üzvlük</strong>
-              <span>{actor.membershipStatus ?? "active"}</span>
-            </div>
-            <div>
-              <strong>Ödəniş</strong>
-              <span>{actor.annualPaymentStatus ?? "paid"}</span>
-            </div>
-            <div>
-              <strong>Ödəniş tarixi</strong>
-              <span>{actor.annualPaymentDate || "-"}</span>
-            </div>
-            <div>
-              <strong>Ödəniş təsdiqi</strong>
-              <span>{actor.paymentManualConfirmed ? "Manual təsdiq" : actor.paymentProvider === "online" ? "Online" : "Təsdiqsiz"}</span>
+              <strong>Qeydiyyat tarixi</strong>
+              <span>{actor.cardIssuedAt || "-"}</span>
             </div>
             <div>
               <strong>Səs</strong>
@@ -4581,7 +4599,7 @@ function App() {
   const [aiFeedback, setAiFeedback] = useState<AiCastingFeedback[]>([]);
   const [aiIndexStatus, setAiIndexStatus] = useState<AiIndexStatus | null>(null);
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
-  const [siteViewCount, setSiteViewCount] = useState(0);
+  const [siteViewStats, setSiteViewStats] = useState<SiteViewStats>(EMPTY_SITE_VIEW_STATS);
   const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">("loading");
   const path = window.location.pathname;
 
@@ -4593,13 +4611,13 @@ function App() {
   useEffect(() => {
     recordSiteView()
       .then((result) => {
-        setSiteViewCount(result.count);
+        setSiteViewStats(result);
       })
       .catch(() => {
         fetchSiteViewCount()
-          .then(setSiteViewCount)
+          .then(setSiteViewStats)
           .catch(() => {
-            setSiteViewCount(0);
+            setSiteViewStats(EMPTY_SITE_VIEW_STATS);
           });
       });
   }, []);
@@ -4895,7 +4913,7 @@ function App() {
   if (path.startsWith("/news/")) {
     const slug = decodeURIComponent(path.replace("/news/", ""));
     const post = newsPosts.find((item) => item.slug === slug && item.status === "published");
-    return post ? <NewsDetailPage post={post} /> : <NotFoundPage />;
+    return post ? <NewsDetailPage actors={actors} post={post} /> : <NotFoundPage />;
   }
 
   if (path === "/apply") {
@@ -4950,7 +4968,7 @@ function App() {
     return (
       <HomePage
         actors={actors}
-        siteViewCount={siteViewCount}
+        siteViewStats={siteViewStats}
         onToggleShortlist={toggleShortlist}
         shortlist={shortlist}
       />

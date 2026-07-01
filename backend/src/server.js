@@ -30,7 +30,7 @@ import {
   getEmbeddingStats,
   getNewsPostBySlug,
   getNewsPosts,
-  getSiteViewCount,
+  getSiteViewStats,
   recordUniqueView,
   resetSeed,
   saveNewsPost,
@@ -529,8 +529,8 @@ function drawPdfCard(doc, actor, qrBuffer) {
   doc.fillColor("#9a3412").font(boldFont).fontSize(16).text(Math.min(5, Math.max(0, actor.rating + actor.adminBoost)).toFixed(1), infoX + 270, infoY + 35, {
     width: 80,
   });
-  doc.fillColor(isDateExpired(actor.cardExpiresAt) ? "#b91c1c" : "#4b5563").font(regularFont).fontSize(9).text(
-    `Verilib: ${actor.cardIssuedAt || "-"}   ·   Bitir: ${actor.cardExpiresAt || "-"}`,
+  doc.fillColor("#4b5563").font(regularFont).fontSize(9).text(
+    `Qeydiyyat tarixi: ${actor.cardIssuedAt || "-"}`,
     infoX + 18,
     infoY + 70,
     {
@@ -1287,7 +1287,7 @@ app.get("/api/news/:slug", (request, response) => {
 });
 
 app.get("/api/analytics/site", (_request, response) => {
-  response.json({ count: getSiteViewCount() });
+  response.json(getSiteViewStats());
 });
 
 app.post("/api/analytics/site/view", (request, response, next) => {
@@ -1297,7 +1297,7 @@ app.post("/api/analytics/site/view", (request, response, next) => {
       visitorHash: getVisitorHash(request),
     });
 
-    response.json({ counted: result.counted, count: result.count });
+    response.json({ counted: result.counted, ...result.stats });
   } catch (error) {
     next(error);
   }
