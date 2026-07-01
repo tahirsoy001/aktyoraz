@@ -43,6 +43,7 @@ import {
   uploadActorPhoto,
 } from "@/api";
 import { Actor, initialActors } from "@/data/actors";
+import "@fontsource-variable/inter";
 import "./styles.css";
 
 const STORAGE_KEY = "aktyor-az-actors";
