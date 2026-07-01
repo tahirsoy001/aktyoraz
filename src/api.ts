@@ -127,6 +127,7 @@ export type NewsPost = {
   projectName?: string;
   coverImage?: string;
   status: "draft" | "published";
+  isPinned?: boolean;
   publishedAt?: string;
   seoTitle?: string;
   seoDescription?: string;

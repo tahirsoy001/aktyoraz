@@ -146,6 +146,7 @@ db.exec(`
     project_name TEXT NOT NULL DEFAULT '',
     cover_image TEXT,
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+    is_pinned INTEGER NOT NULL DEFAULT 0,
     published_at TEXT NOT NULL DEFAULT '',
     seo_title TEXT NOT NULL DEFAULT '',
     seo_description TEXT NOT NULL DEFAULT '',
@@ -198,6 +199,7 @@ for (const statement of [
   "ALTER TABLE news_posts ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE news_posts ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
 ]) {
   try {
     db.prepare(statement).run();
@@ -769,6 +771,7 @@ function fromDbNewsPost(row) {
     projectName: row.project_name ?? "",
     coverImage: row.cover_image ?? undefined,
     status: row.status,
+    isPinned: Boolean(row.is_pinned),
     publishedAt: row.published_at ?? "",
     seoTitle: row.seo_title ?? "",
     seoDescription: row.seo_description ?? "",
@@ -780,10 +783,10 @@ function fromDbNewsPost(row) {
 
 export function getNewsPosts({ includeDrafts = false } = {}) {
   const rows = includeDrafts
-    ? db.prepare("SELECT * FROM news_posts ORDER BY COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC").all()
+    ? db.prepare("SELECT * FROM news_posts ORDER BY is_pinned DESC, COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC").all()
     : db
         .prepare(
-          "SELECT * FROM news_posts WHERE status = 'published' ORDER BY COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC",
+          "SELECT * FROM news_posts WHERE status = 'published' ORDER BY is_pinned DESC, COALESCE(NULLIF(published_at, ''), created_at) DESC, id DESC",
         )
         .all();
 
@@ -813,6 +816,7 @@ export function saveNewsPost(post) {
     projectName: post.projectName ?? "",
     coverImage: post.coverImage ?? null,
     status: post.status === "published" ? "published" : "draft",
+    isPinned: post.isPinned ? 1 : 0,
     publishedAt: post.publishedAt ?? "",
     seoTitle: post.seoTitle ?? "",
     seoDescription: post.seoDescription ?? "",
@@ -821,10 +825,10 @@ export function saveNewsPost(post) {
   const result = db
     .prepare(
       `INSERT INTO news_posts (
-        id, slug, title, excerpt, content, project_name, cover_image, status, published_at,
+        id, slug, title, excerpt, content, project_name, cover_image, status, is_pinned, published_at,
         seo_title, seo_description, updated_at
       ) VALUES (
-        @id, @slug, @title, @excerpt, @content, @projectName, @coverImage, @status, @publishedAt,
+        @id, @slug, @title, @excerpt, @content, @projectName, @coverImage, @status, @isPinned, @publishedAt,
         @seoTitle, @seoDescription, CURRENT_TIMESTAMP
       )
       ON CONFLICT(id) DO UPDATE SET
@@ -835,6 +839,7 @@ export function saveNewsPost(post) {
         project_name = excluded.project_name,
         cover_image = excluded.cover_image,
         status = excluded.status,
+        is_pinned = excluded.is_pinned,
         published_at = excluded.published_at,
         seo_title = excluded.seo_title,
         seo_description = excluded.seo_description,

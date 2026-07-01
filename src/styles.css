@@ -1567,6 +1567,16 @@ h1 {
   padding: 16px;
 }
 
+.mobile-rating-panel {
+  display: none;
+  margin: 14px 16px 18px;
+  max-width: none;
+}
+
+.desktop-rating-panel {
+  display: grid;
+}
+
 .rating-panel p {
   color: var(--muted);
   margin: 0;
@@ -2835,6 +2845,16 @@ h1 {
   margin: 0 0 22px;
 }
 
+.news-pin {
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.26);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 3px 8px;
+}
+
 .inline-profile-link {
   color: var(--accent);
   font-weight: 800;
@@ -2843,6 +2863,32 @@ h1 {
 
 .inline-profile-link:hover {
   text-decoration: underline;
+}
+
+.checkbox-card {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding: 12px;
+}
+
+.checkbox-card input {
+  margin-top: 4px;
+}
+
+.checkbox-card span {
+  display: grid;
+  gap: 3px;
+}
+
+.checkbox-card small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .about-hero {
@@ -3043,6 +3089,14 @@ h1 {
   .profile-visual-card,
   .apply-intro {
     position: static;
+  }
+
+  .desktop-rating-panel {
+    display: none;
+  }
+
+  .mobile-rating-panel {
+    display: grid;
   }
 
   .hero-collage {

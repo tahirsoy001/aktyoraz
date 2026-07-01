@@ -590,6 +590,7 @@ function normalizeNewsPostPayload(payload) {
     projectName: String(payload?.projectName ?? "").trim(),
     coverImage: String(payload?.coverImage ?? "").trim() || undefined,
     status,
+    isPinned: Boolean(payload?.isPinned),
     publishedAt,
     seoTitle: String(payload?.seoTitle ?? "").trim(),
     seoDescription: String(payload?.seoDescription ?? "").trim(),

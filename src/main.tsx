@@ -479,6 +479,7 @@ type NewsForm = {
   projectName: string;
   coverImage: string;
   status: NewsPost["status"];
+  isPinned: boolean;
   publishedAt: string;
   seoTitle: string;
   seoDescription: string;
@@ -492,6 +493,7 @@ const emptyNewsForm: NewsForm = {
   projectName: "",
   coverImage: "",
   status: "draft",
+  isPinned: false,
   publishedAt: new Date().toISOString().slice(0, 10),
   seoTitle: "",
   seoDescription: "",
@@ -1109,6 +1111,7 @@ function newsToForm(post: NewsPost): NewsForm {
     projectName: post.projectName ?? "",
     coverImage: post.coverImage ?? "",
     status: post.status,
+    isPinned: post.isPinned ?? false,
     publishedAt: post.publishedAt ?? "",
     seoTitle: post.seoTitle ?? "",
     seoDescription: post.seoDescription ?? "",
@@ -1125,6 +1128,7 @@ function formToNewsPost(form: NewsForm): NewsPostInput {
     projectName: form.projectName.trim(),
     coverImage: form.coverImage.trim() || undefined,
     status: form.status,
+    isPinned: form.isPinned,
     publishedAt: form.publishedAt,
     seoTitle: form.seoTitle.trim(),
     seoDescription: form.seoDescription.trim(),
@@ -1153,6 +1157,12 @@ function Header() {
         <a className={isActive("/actors") ? "nav-link active" : "nav-link"} href="/actors">
           Baza
         </a>
+        <a className={isActive("/casting-ai") ? "nav-link active" : "nav-link"} href="/casting-ai">
+          AI kastinq
+        </a>
+        <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
+          Bazaya qoşul
+        </a>
         <a className={isActive("/shortlist") ? "nav-link active" : "nav-link"} href="/shortlist">
           Favoritlər
         </a>
@@ -1161,12 +1171,6 @@ function Header() {
         </a>
         <a className={isActive("/about") ? "nav-link active" : "nav-link"} href="/about">
           Haqqımızda
-        </a>
-        <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
-          Bazaya qoşul
-        </a>
-        <a className={isActive("/casting-ai") ? "nav-link active" : "nav-link"} href="/casting-ai">
-          AI kastinq
         </a>
       </nav>
     </header>
@@ -1864,6 +1868,7 @@ function NewsListPage({ posts }: { posts: NewsPost[] }) {
                 </a>
                 <div className="news-card-body">
                   <div className="news-meta-row">
+                    {post.isPinned && <span className="news-pin">Pin</span>}
                     {post.projectName && <span>{post.projectName}</span>}
                     {post.publishedAt && <time>{formatNewsDate(post.publishedAt)}</time>}
                     <span>{post.viewCount ?? 0} oxunma</span>
@@ -2597,6 +2602,38 @@ function AdminLoginPage({
   );
 }
 
+function ActorRatingPanel({
+  actor,
+  className = "",
+  onRateActor,
+  ownVote,
+}: {
+  actor: Actor;
+  className?: string;
+  onRateActor: (actorId: string, rating: number) => void;
+  ownVote?: number;
+}) {
+  return (
+    <div className={`rating-panel ${className}`.trim()} aria-label="Profil reytinqi">
+      <strong>Reytinq ver</strong>
+      {ownVote && <p>Siz bu profilə artıq {ownVote} ulduz vermisiniz.</p>}
+      <div className="rating-buttons">
+        {[1, 2, 3, 4, 5].map((rating) => (
+          <button
+            className={ownVote ? "star-button disabled" : "star-button"}
+            disabled={Boolean(ownVote)}
+            key={rating}
+            onClick={() => onRateActor(actor.id, rating)}
+            type="button"
+          >
+            ★ {rating}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ActorProfilePage({
   actors,
   slug,
@@ -2679,6 +2716,12 @@ function ActorProfilePage({
               src={getActorQrSvgUrl(actor.id)}
             />
           </div>
+          <ActorRatingPanel
+            actor={actor}
+            className="mobile-rating-panel"
+            onRateActor={onRateActor}
+            ownVote={ownVote}
+          />
         </div>
 
         <div className="profile-content">
@@ -2805,23 +2848,12 @@ function ActorProfilePage({
               ))}
             </div>
           ) : null}
-          <div className="rating-panel" aria-label="Profil reytinqi">
-            <strong>Reytinq ver</strong>
-            {ownVote && <p>Siz bu profilə artıq {ownVote} ulduz vermisiniz.</p>}
-            <div className="rating-buttons">
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <button
-                  className={ownVote ? "star-button disabled" : "star-button"}
-                  disabled={Boolean(ownVote)}
-                  key={rating}
-                  onClick={() => onRateActor(actor.id, rating)}
-                  type="button"
-                >
-                  ★ {rating}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ActorRatingPanel
+            actor={actor}
+            className="desktop-rating-panel"
+            onRateActor={onRateActor}
+            ownVote={ownVote}
+          />
         </div>
       </section>
     </main>
@@ -3041,11 +3073,11 @@ function AdminPage({
     setForm(emptyForm);
   }
 
-  function updateNewsForm(name: keyof NewsForm, value: string) {
+  function updateNewsForm<T extends keyof NewsForm>(name: T, value: NewsForm[T]) {
     setNewsForm((current) => ({
       ...current,
       [name]: value,
-      ...(name === "title" && !current.slug ? { slug: slugify(value) } : {}),
+      ...(name === "title" && !current.slug ? { slug: slugify(String(value)) } : {}),
     }));
   }
 
@@ -4056,6 +4088,17 @@ function AdminPage({
                 value={newsForm.publishedAt}
               />
             </label>
+            <label className="checkbox-card">
+              <input
+                checked={newsForm.isPinned}
+                onChange={(event) => updateNewsForm("isPinned", event.target.checked)}
+                type="checkbox"
+              />
+              <span>
+                <strong>Üstə pinlə</strong>
+                <small>Xəbərlər səhifəsində və admin siyahısında əvvəl göstər.</small>
+              </span>
+            </label>
             <label>
               Cover foto
               <input accept="image/jpeg,image/png,image/webp" onChange={handleNewsCover} type="file" />
@@ -4122,6 +4165,7 @@ function AdminPage({
                     <span className={post.status === "published" ? "badge success" : "badge warning"}>
                       {post.status === "published" ? "Yayımda" : "Draft"}
                     </span>
+                    {post.isPinned && <span className="badge">Pinlənib</span>}
                     {post.projectName && <span className="badge">{post.projectName}</span>}
                     {post.publishedAt && <span className="badge">{formatNewsDate(post.publishedAt)}</span>}
                     {post.status === "published" && (
