@@ -322,7 +322,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
           name: "Azərbaycan Aktyor və Aktrisa Bazası",
           logo: {
             "@type": "ImageObject",
-            url: `${SITE_URL}/favicon.svg`,
+            url: `${SITE_URL}/aktyor-logo.svg`,
           },
         },
       },
@@ -1144,7 +1144,7 @@ function Header() {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-        <OptimizedImage className="brand-mark" src="/favicon.svg" alt="Aktyor.az" loading="eager" width="56" height="56" />
+        <OptimizedImage className="brand-mark" src="/aktyor-logo.svg" alt="Aktyor.az" loading="eager" width="56" height="56" />
         <span className="brand-divider" aria-hidden="true" />
         <span className="brand-text">
           <span>Azərbaycan Aktyor</span>

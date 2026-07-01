@@ -1,14 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#111827" flood-opacity="0.14"/>
+    </filter>
+  </defs>
   <rect width="1200" height="630" fill="#f7f7f3"/>
-  <rect x="54" y="54" width="1092" height="522" rx="42" fill="#ffffff"/>
+  <rect x="54" y="54" width="1092" height="522" rx="42" fill="#ffffff" filter="url(#shadow)"/>
   <rect x="54" y="54" width="1092" height="522" rx="42" fill="none" stroke="#deded6" stroke-width="2"/>
-  <rect x="128" y="176" width="360" height="150" rx="24" fill="#facc15"/>
-  <rect x="128" y="176" width="360" height="150" rx="24" fill="none" stroke="#111827" stroke-width="6"/>
-  <text x="168" y="282" fill="#111827" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="82">AAAb</text>
-  <rect x="560" y="172" width="2" height="176" fill="#deded6"/>
-  <text x="620" y="230" fill="#111827" font-family="Arial, sans-serif" font-weight="900" font-size="44" letter-spacing="7">AZƏRBAYCAN AKTYOR</text>
-  <text x="620" y="294" fill="#111827" font-family="Arial, sans-serif" font-weight="900" font-size="44" letter-spacing="7">VƏ AKTRİSA BAZASI</text>
-  <text x="128" y="430" fill="#4b5563" font-family="Arial, sans-serif" font-size="30">Aktyor və aktrisalar üçün kataloq, kastinq profilləri,</text>
-  <text x="128" y="474" fill="#4b5563" font-family="Arial, sans-serif" font-size="30">rəqəmsal ID, QR və PDF təsdiq kart sistemi.</text>
-  <text x="128" y="530" fill="#b91c1c" font-family="Arial, sans-serif" font-weight="900" font-size="32">aktyor.az</text>
+  <g transform="translate(128 168) scale(0.18)">
+    <path fill-rule="evenodd" fill="#7a2cdf" d="m324 0h826c178.9 0 324 145.1 324 324v828c0 178.9-145.1 324-324 324h-826c-178.9 0-324-145.1-324-324v-828c0-178.9 145.1-324 324-324z"/>
+    <path fill-rule="evenodd" fill="#6024b5" d="m320.5 30h834.5c161.3 0 292 130.7 292 292v833.5c0 161.3-130.7 292-292 292h-834.5c-161.3 0-292-130.7-292-292v-833.5c0-161.3 130.7-292 292-292z"/>
+    <path fill-rule="evenodd" fill="#7a2cdf" d="m328 119h822c123.2 0 223 99.8 223 223v795c0 123.2-99.8 223-223 223h-822c-123.2 0-223-99.8-223-223v-795c0-123.2 99.8-223 223-223z"/>
+    <path fill="#fff" d="m1079.2 331v420.5q0 107 12.5 180 14.2 71.3 30.3 115.8 19.6 53.5 42.7 83.8l-158.6 64.2q-23.1-23.2-42.7-55.3-16.1-28.5-30.3-67.7-14.3-41-17.9-96.2-30.2 106.9-98 162.1-65.9 53.5-179.9 53.5-83.8 0-146.2-30.3-60.6-32.1-101.5-89.1-41-58.8-60.6-140.8-19.6-82-19.6-181.7 0-101.6 30.3-187.2 32-87.3 87.3-149.6 57-62.4 135.4-98.1 78.4-35.6 172.9-35.6 53.4 0 110.5 8.9 58.8 7.1 108.7 16.1 49.8 8.9 83.7 17.8 35.6 7.1 41 8.9zm-408.1 718.1q44.6 0 82-30.3 37.4-30.3 64.1-78.4 28.6-49.9 42.8-112.2 16-64.2 16-130.1v-256.6q-17.8-5.4-53.4-12.5-35.7-7.1-64.2-7.1-67.7 0-112.2 23.1-42.8 23.2-69.5 64.2-26.8 41-37.5 98-10.6 57-10.6 124.7 0 62.4 3.5 119.4 3.6 57.1 17.8 101.6 16.1 44.6 44.6 71.3 28.5 24.9 76.6 24.9z"/>
+  </g>
+  <rect x="450" y="166" width="2" height="218" fill="#deded6"/>
+  <text x="508" y="230" fill="#111827" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="46" letter-spacing="5">AZƏRBAYCAN AKTYOR</text>
+  <text x="508" y="294" fill="#111827" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="46" letter-spacing="5">VƏ AKTRİSA BAZASI</text>
+  <text x="128" y="456" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="30">Aktyor və aktrisalar üçün kataloq, kastinq profilləri,</text>
+  <text x="128" y="500" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="30">rəqəmsal ID, QR və PDF təsdiq kart sistemi.</text>
+  <text x="128" y="548" fill="#8d28e4" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="32">aktyor.az</text>
 </svg>
