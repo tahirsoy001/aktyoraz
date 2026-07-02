@@ -465,6 +465,13 @@ h1 {
   grid-row: 5 / 7;
 }
 
+.collage-card-7 {
+  --tilt: -1.5deg;
+  animation: collage-float-a 8.2s ease-in-out infinite;
+  grid-column: 3 / 5;
+  grid-row: 1 / 3;
+}
+
 .collage-insight {
   align-self: end;
   background: rgba(255, 255, 255, 0.9);
@@ -1458,6 +1465,20 @@ h1 {
 
 .share-button svg {
   flex: 0 0 auto;
+}
+
+.shortlist-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.shortlist-actions span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .profile-detail-grid,
@@ -3191,7 +3212,8 @@ h1 {
   }
 
   .collage-card-5,
-  .collage-card-6 {
+  .collage-card-6,
+  .collage-card-7 {
     display: none;
   }
 

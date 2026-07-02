@@ -653,10 +653,10 @@ function getHomeCollageActors(actorList: Actor[], randomize = false) {
     .sort((first, second) => (first.homeOrder ?? 99) - (second.homeOrder ?? 99));
 
   if (!randomize) {
-    return manualActors.slice(0, 6);
+    return manualActors.slice(0, 7);
   }
 
-  return randomizeActorPool(manualActors).slice(0, 6);
+  return randomizeActorPool(manualActors).slice(0, 7);
 }
 
 function actorMatchesQuery(actor: Actor, query: string) {
@@ -1735,6 +1735,48 @@ function ShortlistPage({
   const shortlistedActors = sortByRating(
     actors.filter((actor) => shortlist.includes(actor.id) && actor.status !== "inactive"),
   );
+  const [exportMessage, setExportMessage] = useState("");
+
+  const favoriteExportText = useMemo(() => {
+    if (!shortlistedActors.length) {
+      return "";
+    }
+
+    const lines = shortlistedActors.map((actor, index) => (
+      `${index + 1}. ${actor.name} - ${actor.role}, ${actor.city}, ${effectiveRating(actor).toFixed(1)} ulduz\n${SITE_URL}/actors/${actor.slug}`
+    ));
+
+    return [
+      "Aktyor.az favorit siyahısı",
+      "Rejissor/kastinq seçimi üçün seçilmiş profillər:",
+      "",
+      ...lines,
+    ].join("\n");
+  }, [shortlistedActors]);
+
+  async function exportFavorites() {
+    if (!favoriteExportText) {
+      setExportMessage("Favorit siyahısı boşdur.");
+      return;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          text: favoriteExportText,
+          title: "Aktyor.az favorit siyahısı",
+        });
+        setExportMessage("Favorit siyahısı paylaşım üçün hazırlandı.");
+      } else {
+        await navigator.clipboard.writeText(favoriteExportText);
+        setExportMessage("Favorit siyahısı kopyalandı.");
+      }
+    } catch (error) {
+      if ((error as DOMException).name !== "AbortError") {
+        setExportMessage("Paylaşım alınmadı. Siyahını yenidən yoxlayın.");
+      }
+    }
+  }
 
   return (
     <main className="page-shell">
@@ -1744,6 +1786,21 @@ function ShortlistPage({
         <p className="lead">
           Kastinq üçün seçdiyin aktyor və aktrisa profilləri burada toplanır.
         </p>
+        {shortlistedActors.length ? (
+          <div className="shortlist-actions">
+            <button className="button share-button" onClick={exportFavorites} type="button">
+              <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+                <path d="M7.5 12.5 16.5 7M7.5 11.5l9 5.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                <circle cx="18" cy="6" r="3" stroke="currentColor" strokeWidth="2" />
+                <circle cx="18" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+              </svg>
+              Favoritləri paylaş
+            </button>
+            <span>{shortlistedActors.length} profil</span>
+          </div>
+        ) : null}
+        {exportMessage && <p className="share-state">{exportMessage}</p>}
       </section>
       <section className="section">
         {shortlistedActors.length ? (
@@ -3617,14 +3674,14 @@ function AdminPage({
                   <button className="admin-top-item" key={actor.id} onClick={() => editActor(actor)} type="button">
                     <strong>{index + 1}</strong>
                     <span>{actor.name}</span>
-                    <small>{actor.homeOrder ? "manual" : "auto"}</small>
+                    <small>{actor.homeOrder ? "seçilib" : "seçilməyib"}</small>
                   </button>
                 ))}
               </div>
             </div>
             <p>
-              Top 5 və kolaj yalnız adminin seçdiyi profillərdən formalaşır. Bir neçə profilə seçim nömrəsi ver:
-              səhifə yenilənəndə onlar öz aralarında random göstərilir. Yeni Baza slide üçün profilə “Baza slide kateqoriyaları” əlavə et.
+              Top 5 və kolaj yalnız adminin checkbox ilə seçdiyi profillərdən formalaşır. Səhifə yenilənəndə
+              seçilmiş profillər öz aralarında random göstərilir. Yeni Baza slide üçün profilə “Baza slide kateqoriyaları” əlavə et.
             </p>
           </div>
           <div className="admin-browse-panel">
@@ -3807,27 +3864,27 @@ function AdminPage({
                 value={form.adminBoost}
               />
             </label>
-            <label>
-              Top 5 seçimi
+            <label className="checkbox-card">
               <input
-                max="99"
-                min="1"
-                onChange={(event) => updateForm("featuredOrder", event.target.value)}
-                placeholder="Boş saxla və ya 1-99"
-                type="number"
-                value={form.featuredOrder}
+                checked={Boolean(form.featuredOrder)}
+                onChange={(event) => updateForm("featuredOrder", event.target.checked ? "1" : "")}
+                type="checkbox"
               />
+              <span>
+                <strong>Top 5 pooluna əlavə et</strong>
+                <small>Seçilən profillər Top 5 daxilində random sıralanır.</small>
+              </span>
             </label>
-            <label>
-              Ana səhifə kolaj seçimi
+            <label className="checkbox-card">
               <input
-                max="99"
-                min="1"
-                onChange={(event) => updateForm("homeOrder", event.target.value)}
-                placeholder="Boş saxla və ya 1-99"
-                type="number"
-                value={form.homeOrder}
+                checked={Boolean(form.homeOrder)}
+                onChange={(event) => updateForm("homeOrder", event.target.checked ? "1" : "")}
+                type="checkbox"
               />
+              <span>
+                <strong>Ana səhifə kolajına əlavə et</strong>
+                <small>Kolajda seçilən profillərdən 7-si random görünür.</small>
+              </span>
             </label>
             <label>
               Kart statusu
@@ -4546,10 +4603,10 @@ function AdminPage({
                     <span className="badge success">Top {actorTopRank.get(actor.id)}</span>
                   )}
                   {actor.featuredOrder && (
-                    <span className="badge rating-badge">Manual Top {actor.featuredOrder}</span>
+                    <span className="badge rating-badge">Top 5 seçilib</span>
                   )}
                   {actor.homeOrder && (
-                    <span className="badge rating-badge">Home kolaj {actor.homeOrder}</span>
+                    <span className="badge rating-badge">Kolaj seçilib</span>
                   )}
                   {(actor.browseCategories ?? []).map((category) => (
                     <span className="badge" key={category}>Slide: {category}</span>
