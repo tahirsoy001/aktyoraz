@@ -15,6 +15,7 @@ import {
   createAuditLog,
   createAiCastingFeedback,
   createApplication,
+  consumeAiUsageSlot,
   db,
   deleteActor,
   deleteApplication,
@@ -24,6 +25,7 @@ import {
   getApplications,
   getAuditLogs,
   getAiCastingFeedback,
+  getAiUsage,
   getActorById,
   getActorEmbedding,
   getActors,
@@ -56,6 +58,7 @@ const defaultAdminName = process.env.ADMIN_NAME ?? "Aktyor.az Admin";
 const openaiApiKey = process.env.OPENAI_API_KEY ?? "";
 const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
 const openaiEmbeddingModel = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
+const openaiCastingDailyLimit = Math.max(0, Number(process.env.OPENAI_CASTING_DAILY_LIMIT ?? 10));
 const uploadDir = path.resolve(__dirname, "..", process.env.UPLOAD_DIR ?? "uploads");
 const uploadBaseUrl = process.env.UPLOAD_BASE_URL ?? "";
 const adminLoginRateLimitWindowMs = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
@@ -724,6 +727,44 @@ function contentHash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function bakuDateKey(date = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Baku",
+    year: "numeric",
+  }).format(date);
+}
+
+function openAiCastingBudget() {
+  const usageDate = bakuDateKey();
+  const usageKey = "casting-search";
+
+  if (!openaiApiKey || openaiCastingDailyLimit <= 0) {
+    return {
+      allowed: false,
+      count: getAiUsage({ usageDate, usageKey }).count,
+      enabled: Boolean(openaiApiKey),
+      limit: openaiCastingDailyLimit,
+      limited: Boolean(openaiApiKey),
+      usageDate,
+      usageKey,
+    };
+  }
+
+  const usage = consumeAiUsageSlot({
+    limit: openaiCastingDailyLimit,
+    usageDate,
+    usageKey,
+  });
+
+  return {
+    ...usage,
+    enabled: true,
+    limited: !usage.allowed,
+  };
+}
+
 function cosineSimilarity(first, second) {
   let dot = 0;
   let firstMagnitude = 0;
@@ -1009,6 +1050,71 @@ function normalizePromptAnalysis(value, fallback) {
   };
 }
 
+function normalizeImageAnalysis(value) {
+  return {
+    background: String(value.background ?? ""),
+    framing: String(value.framing ?? ""),
+    lighting: String(value.lighting ?? ""),
+    profileNote: String(value.profileNote ?? ""),
+    quality: String(value.quality ?? ""),
+    warnings: normalizeAnalysisArray(value.warnings, 4),
+  };
+}
+
+async function analyzeUploadedImage(file) {
+  if (!openaiApiKey || !file?.path) {
+    return null;
+  }
+
+  const imageBase64 = fs.readFileSync(file.path).toString("base64");
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    body: JSON.stringify({
+      input: [
+        {
+          content: [
+            {
+              text: [
+                "Bu aktyor bazası üçün yüklənən profil fotosudur.",
+                "Şəxsin kimliyini təxmin etmə və biometrik tanıma etmə.",
+                "Yalnız foto keyfiyyəti, işıq, fon, kadr uyğunluğu və profil üçün qısa görünüş qeydi çıxar.",
+                "Azərbaycan dilində yalnız JSON object qaytar.",
+                "Schema:",
+                "{\"quality\":\"yaxşı/orta/zəif\",\"lighting\":\"işıq qeydi\",\"background\":\"fon qeydi\",\"framing\":\"kadr qeydi\",\"profileNote\":\"AI profilində istifadə oluna bilən 1 cümləlik obyektiv görünüş qeydi\",\"warnings\":[\"texniki risk\"]}",
+              ].join(" "),
+              type: "input_text",
+            },
+            {
+              image_url: `data:${file.mimetype};base64,${imageBase64}`,
+              type: "input_image",
+            },
+          ],
+          role: "user",
+        },
+      ],
+      max_output_tokens: 500,
+      model: openaiModel,
+      temperature: 0.1,
+    }),
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI image analysis failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text =
+    data.output_text ??
+    data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? "").join("\n") ??
+    "{}";
+
+  return normalizeImageAnalysis(parseOpenAiJsonObject(text));
+}
+
 function analysisSearchText(prompt, analysis) {
   return [
     prompt,
@@ -1062,10 +1168,10 @@ function actorMatchesRequestedRole(actor, requestedRole) {
   return true;
 }
 
-async function analyzeCastingPrompt(prompt) {
+async function analyzeCastingPrompt(prompt, useOpenAi = Boolean(openaiApiKey)) {
   const fallback = promptProfileToAnalysis(prompt);
 
-  if (!openaiApiKey) {
+  if (!openaiApiKey || !useOpenAi) {
     return fallback;
   }
 
@@ -1113,15 +1219,16 @@ async function analyzeCastingPrompt(prompt) {
   return normalizePromptAnalysis(parseOpenAiJsonObject(text), fallback);
 }
 
-async function aiCastingSearch(prompt, actors, limit) {
-  const analysis = await analyzeCastingPrompt(prompt);
+async function aiCastingSearch(prompt, actors, limit, options = {}) {
+  const useOpenAi = Boolean(options.useOpenAi && openaiApiKey);
+  const analysis = await analyzeCastingPrompt(prompt, useOpenAi);
   const searchText = analysisSearchText(prompt, analysis);
   const requestedRole = getRequestedRoleFromAnalysis(prompt, analysis);
   const searchableActors = requestedRole
     ? actors.filter((actor) => actorMatchesRequestedRole(actor, requestedRole))
     : actors;
 
-  if (!openaiApiKey) {
+  if (!openaiApiKey || !useOpenAi) {
     return { analysis, mode: "rules", results: fallbackCastingSearch(searchText, searchableActors, limit) };
   }
 
@@ -1366,12 +1473,21 @@ app.post("/api/ai/casting-search", async (request, response, next) => {
 
   try {
     const actors = getActors();
-    const result = await aiCastingSearch(prompt, actors, limit);
+    const budget = openAiCastingBudget();
+    const result = await aiCastingSearch(prompt, actors, limit, { useOpenAi: budget.allowed });
     const actorsById = new Map(actors.map((actor) => [actor.id, actor]));
 
     response.json({
       analysis: result.analysis,
       mode: result.mode,
+      openai: {
+        dailyLimit: budget.limit,
+        dailyUsed: budget.count,
+        enabled: budget.enabled,
+        limited: budget.limited,
+        resetTimezone: "Asia/Baku",
+        usageDate: budget.usageDate,
+      },
       results: result.results.map((item) => ({
         actor: actorsById.get(item.actorId),
         actorId: item.actorId,
@@ -1706,14 +1822,25 @@ app.delete("/api/admin/applications/:id", requireAdmin, (request, response) => {
   response.json({ deleted: true });
 });
 
-app.post("/api/admin/uploads/photo", requireAdmin, upload.single("photo"), (request, response) => {
+app.post("/api/admin/uploads/photo", requireAdmin, upload.single("photo"), async (request, response) => {
   if (!request.file) {
     response.status(400).json({ error: "photo file is required" });
     return;
   }
 
+  let analysis = null;
+  let analysisError = "";
+
+  try {
+    analysis = await analyzeUploadedImage(request.file);
+  } catch (error) {
+    analysisError = error instanceof Error ? error.message : "image analysis failed";
+  }
+
   response.status(201).json({
     file: {
+      analysis,
+      analysisError,
       filename: request.file.filename,
       mimetype: request.file.mimetype,
       size: request.file.size,

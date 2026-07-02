@@ -163,6 +163,14 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(entity_type, entity_id, visitor_hash)
   );
+
+  CREATE TABLE IF NOT EXISTS ai_usage (
+    usage_key TEXT NOT NULL,
+    usage_date TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usage_key, usage_date)
+  );
 `);
 
 for (const statement of [
@@ -703,6 +711,50 @@ export function saveActorEmbedding({ actorId, contentHash, embedding, model }) {
 
 export function getEmbeddingStats() {
   return db.prepare("SELECT COUNT(*) as count FROM actor_embeddings").get();
+}
+
+export function getAiUsage({ usageKey, usageDate }) {
+  const row = db.prepare("SELECT * FROM ai_usage WHERE usage_key = ? AND usage_date = ?").get(usageKey, usageDate);
+
+  return {
+    count: row?.count ?? 0,
+    usageDate,
+    usageKey,
+  };
+}
+
+export function consumeAiUsageSlot({ usageKey, usageDate, limit }) {
+  return db.transaction(() => {
+    const current = getAiUsage({ usageKey, usageDate });
+
+    if (current.count >= limit) {
+      return {
+        allowed: false,
+        count: current.count,
+        limit,
+        usageDate,
+        usageKey,
+      };
+    }
+
+    const nextCount = current.count + 1;
+
+    db.prepare(
+      `INSERT INTO ai_usage (usage_key, usage_date, count, updated_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(usage_key, usage_date) DO UPDATE SET
+         count = excluded.count,
+         updated_at = CURRENT_TIMESTAMP`,
+    ).run(usageKey, usageDate, nextCount);
+
+    return {
+      allowed: true,
+      count: nextCount,
+      limit,
+      usageDate,
+      usageKey,
+    };
+  })();
 }
 
 export function createAiCastingFeedback({ adminEmail, prompt, promptAnalysis, actorId, decision, note }) {

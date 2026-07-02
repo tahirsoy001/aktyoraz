@@ -2330,6 +2330,12 @@ function CastingAiPage({
   const [results, setResults] = useState<CastingSearchResult[]>([]);
   const [analysis, setAnalysis] = useState<CastingPromptAnalysis | null>(null);
   const [mode, setMode] = useState<"openai" | "rules" | "">("");
+  const [openAiUsage, setOpenAiUsage] = useState<{
+    dailyLimit: number;
+    dailyUsed: number;
+    enabled: boolean;
+    limited: boolean;
+  } | null>(null);
   const [error, setError] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -2338,6 +2344,7 @@ function CastingAiPage({
     event.preventDefault();
     setError("");
     setAnalysis(null);
+    setOpenAiUsage(null);
     setIsSearching(true);
 
     try {
@@ -2345,6 +2352,7 @@ function CastingAiPage({
       setAnalysis(data.analysis ?? null);
       setResults(data.results);
       setMode(data.mode);
+      setOpenAiUsage(data.openai ?? null);
     } catch {
       setError("AI axtarış alınmadı. Backend serverin işlədiyini yoxlayın.");
     } finally {
@@ -2425,6 +2433,10 @@ function CastingAiPage({
           {mode && (
             <div className="upload-state">
               Rejim: {mode === "openai" ? "OpenAI AI scoring" : "Lokal qayda əsaslı fallback"}
+              {openAiUsage?.enabled && openAiUsage.dailyLimit > 0
+                ? ` · OpenAI: ${openAiUsage.dailyUsed}/${openAiUsage.dailyLimit} günlük istifadə`
+                : ""}
+              {openAiUsage?.limited ? " · Günlük OpenAI limiti dolub, lokal nəticə göstərilir." : ""}
             </div>
           )}
           {error && <div className="form-error">{error}</div>}
@@ -3202,8 +3214,11 @@ function AdminPage({
     setIsUploading(true);
 
     try {
-      const photoUrl = await uploadActorPhoto(file, session.token);
-      updateForm("photo", photoUrl);
+      const upload = await uploadActorPhoto(file, session.token);
+      updateForm("photo", upload.url);
+      if (!form.aiLookNotes.trim() && upload.analysis?.profileNote) {
+        updateForm("aiLookNotes", upload.analysis.profileNote);
+      }
       await refreshMediaFiles();
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Foto yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
@@ -3222,8 +3237,8 @@ function AdminPage({
     setIsUploading(true);
 
     try {
-      const photoUrl = await uploadActorPhoto(file, session.token);
-      updateForm("gallery", [...form.gallery.split("\n").filter(Boolean), photoUrl].join("\n"));
+      const upload = await uploadActorPhoto(file, session.token);
+      updateForm("gallery", [...form.gallery.split("\n").filter(Boolean), upload.url].join("\n"));
       await refreshMediaFiles();
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Qalereya fotosu yüklənmədi. JPG, PNG və ya WEBP, maksimum 5MB olmalıdır.");
@@ -3242,8 +3257,8 @@ function AdminPage({
     setNewsMessage("Xəbər şəkli yüklənir...");
 
     try {
-      const photoUrl = await uploadActorPhoto(file, session.token);
-      updateNewsForm("coverImage", photoUrl);
+      const upload = await uploadActorPhoto(file, session.token);
+      updateNewsForm("coverImage", upload.url);
       await refreshMediaFiles();
       setNewsMessage("Xəbər şəkli yükləndi.");
     } catch (error) {

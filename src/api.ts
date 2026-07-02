@@ -197,6 +197,14 @@ export async function castingSearch(prompt: string, limit = 6) {
   return request<{
     analysis?: CastingPromptAnalysis;
     mode: "openai" | "rules";
+    openai?: {
+      dailyLimit: number;
+      dailyUsed: number;
+      enabled: boolean;
+      limited: boolean;
+      resetTimezone: string;
+      usageDate: string;
+    };
     results: CastingSearchResult[];
   }>("/ai/casting-search", {
     body: JSON.stringify({ limit, prompt }),
@@ -372,8 +380,21 @@ export async function uploadActorPhoto(file: File, token?: string) {
     throw new Error(body.error ?? `Upload error ${response.status}`);
   }
 
-  const data = (await response.json()) as { file: { url: string } };
-  return data.file.url;
+  const data = (await response.json()) as {
+    file: {
+      analysis?: {
+        background?: string;
+        framing?: string;
+        lighting?: string;
+        profileNote?: string;
+        quality?: string;
+        warnings?: string[];
+      } | null;
+      analysisError?: string;
+      url: string;
+    };
+  };
+  return data.file;
 }
 
 export function getActorQrSvgUrl(actorId: string) {

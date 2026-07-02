@@ -28,6 +28,7 @@ Before deploy, replace:
 - `JWT_SECRET`
 - `ADMIN_PASSWORD`
 - `OPENAI_API_KEY`
+- `OPENAI_CASTING_DAILY_LIMIT` - public AI kastinq üçün günlük OpenAI limiti, default `10`
 - `PDF_FONT_REGULAR`
 - `PDF_FONT_BOLD`
 - `HOST` if your hosting provider requires a specific bind host
