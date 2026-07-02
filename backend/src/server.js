@@ -570,6 +570,158 @@ function drawPdfCard(doc, actor, qrBuffer) {
   });
 }
 
+function sanitizePdfFilename(value, fallback = "aktyoraz-layihe") {
+  const slug = String(value ?? "")
+    .toLocaleLowerCase("az")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ə/g, "e")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return slug || fallback;
+}
+
+function drawDirectorProjectPdf(doc, project) {
+  const regularFont = pdfRegularFontPath ? "AktyorRegular" : "Helvetica";
+  const boldFont = pdfBoldFontPath ? "AktyorBold" : "Helvetica-Bold";
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const margin = 34;
+  const gap = 14;
+  const cardWidth = (pageWidth - margin * 2 - gap * 3) / 4;
+  let y = 120;
+
+  if (pdfRegularFontPath) {
+    doc.registerFont("AktyorRegular", pdfRegularFontPath);
+  }
+
+  if (pdfBoldFontPath) {
+    doc.registerFont("AktyorBold", pdfBoldFontPath);
+  }
+
+  function drawPageHeader() {
+    doc.rect(0, 0, pageWidth, 86).fill("#fbf8ff");
+    drawPdfBrandMark(doc, margin, 24, 38);
+    doc.fillColor("#111827").font(boldFont).fontSize(12).text("Azərbaycan Aktyor və Aktrisa Bazası", margin + 52, 27, {
+      width: 250,
+    });
+    doc.fillColor("#6b556d").font(regularFont).fontSize(9).text("Rejissor kabineti · Layihə eksportu", margin + 52, 49, {
+      width: 250,
+    });
+    doc.fillColor("#111827").font(boldFont).fontSize(19).text(project.name || "Adsız layihə", margin + 330, 24, {
+      align: "right",
+      width: pageWidth - margin * 2 - 330,
+    });
+    doc.fillColor("#6b6f76").font(regularFont).fontSize(9).text(
+      `Yaradılıb: ${project.createdAt ? new Date(project.createdAt).toLocaleDateString("az-AZ") : "-"} · Eksport: ${new Date().toLocaleDateString("az-AZ")}`,
+      margin + 330,
+      52,
+      {
+        align: "right",
+        width: pageWidth - margin * 2 - 330,
+      },
+    );
+  }
+
+  function actorMeta(actor) {
+    const rating = Math.min(5, Math.max(0, Number(actor.rating ?? 0) + Number(actor.adminBoost ?? 0))).toFixed(1);
+
+    return `${actor.role || "Aktyor"} · ${actor.city || "-"} · ★ ${rating}`;
+  }
+
+  drawPageHeader();
+
+  const roles = Array.isArray(project.roles) ? project.roles : [];
+
+  if (!roles.length) {
+    doc.fillColor("#111827").font(boldFont).fontSize(18).text("Bu layihədə hələ obraz yoxdur.", margin, y);
+    return;
+  }
+
+  for (let index = 0; index < roles.length; index += 4) {
+    const roleRow = roles.slice(index, index + 4);
+    const rowHeights = roleRow.map((role) => {
+      const actorCount = Math.max(1, Array.isArray(role.actors) ? role.actors.length : 0);
+      return Math.max(230, 74 + actorCount * 78);
+    });
+    const rowHeight = Math.min(Math.max(...rowHeights), pageHeight - 126);
+
+    if (y + rowHeight > pageHeight - 34) {
+      doc.addPage();
+      drawPageHeader();
+      y = 120;
+    }
+
+    roleRow.forEach((role, columnIndex) => {
+      const x = margin + columnIndex * (cardWidth + gap);
+      const actors = Array.isArray(role.actors) ? role.actors : [];
+
+      doc.roundedRect(x, y, cardWidth, rowHeight, 10).fillAndStroke("#ffffff", "#deded6");
+      doc.fillColor("#111827").font(boldFont).fontSize(14).text(role.name || "Obraz", x + 12, y + 14, {
+        width: cardWidth - 56,
+      });
+      doc.fillColor("#7a2cdf").font(boldFont).fontSize(9).text(`${actors.length} namizəd`, x + 12, y + 36, {
+        width: cardWidth - 24,
+      });
+
+      if (!actors.length) {
+        doc.fillColor("#6b6f76").font(regularFont).fontSize(9).text("Bu obraza hələ aktyor əlavə edilməyib.", x + 12, y + 76, {
+          width: cardWidth - 24,
+        });
+        return;
+      }
+
+      for (let actorIndex = 0; actorIndex < actors.length; actorIndex += 1) {
+        const actor = actors[actorIndex];
+        const itemY = y + 64 + actorIndex * 78;
+
+        if (itemY + 62 > y + rowHeight - 10) {
+          doc.fillColor("#6b6f76").font(boldFont).fontSize(9).text(`+${actors.length - actorIndex} namizəd`, x + 12, y + rowHeight - 28, {
+            width: cardWidth - 24,
+          });
+          break;
+        }
+
+        const photoPath = getPhotoPath(actor.photo);
+        doc.roundedRect(x + 12, itemY, cardWidth - 24, 62, 8).fill("#fbfbf8");
+
+        if (photoPath && fs.existsSync(photoPath)) {
+          doc.image(photoPath, x + 18, itemY + 6, { fit: [42, 50], align: "center" });
+        } else {
+          doc.roundedRect(x + 18, itemY + 6, 42, 50, 6).fill("#7a2cdf");
+          doc.fillColor("#ffffff").font(boldFont).fontSize(11).text(actor.initials || "AA", x + 18, itemY + 24, {
+            align: "center",
+            width: 42,
+          });
+        }
+
+        doc.fillColor("#111827").font(boldFont).fontSize(10).text(actor.name || "Adsız aktyor", x + 68, itemY + 10, {
+          width: cardWidth - 88,
+          lineBreak: false,
+        });
+        doc.fillColor("#6b6f76").font(regularFont).fontSize(8).text(actorMeta(actor), x + 68, itemY + 29, {
+          width: cardWidth - 88,
+          lineBreak: false,
+        });
+        doc.fillColor("#7a2cdf").font(boldFont).fontSize(7).text(actor.id || "", x + 68, itemY + 45, {
+          width: cardWidth - 88,
+          lineBreak: false,
+        });
+      }
+    });
+
+    y += rowHeight + gap;
+  }
+}
+
 function parseNumbers(value) {
   return String(value).match(/\d+/g)?.map(Number) ?? [];
 }
@@ -1623,6 +1775,40 @@ app.get("/api/actors/:id/card.pdf", async (request, response, next) => {
     );
     doc.pipe(response);
     drawPdfCard(doc, actor, qrBuffer);
+    doc.end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/director/export.pdf", (request, response, next) => {
+  try {
+    const rawProject = request.body?.project ?? {};
+    const roles = Array.isArray(rawProject.roles) ? rawProject.roles : [];
+    const project = {
+      createdAt: String(rawProject.createdAt ?? ""),
+      name: String(rawProject.name ?? "Rejissor layihəsi").trim() || "Rejissor layihəsi",
+      roles: roles.slice(0, 80).map((role) => {
+        const actorIds = Array.isArray(role.actorIds) ? role.actorIds : [];
+
+        return {
+          name: String(role.name ?? "Obraz").trim() || "Obraz",
+          actors: actorIds
+            .slice(0, 40)
+            .map((actorId) => getActorById(String(actorId)))
+            .filter(Boolean),
+        };
+      }),
+    };
+    const doc = new PDFDocument({ layout: "landscape", margin: 0, size: "A4" });
+
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${sanitizePdfFilename(project.name)}-cast-board.pdf"`,
+    );
+    doc.pipe(response);
+    drawDirectorProjectPdf(doc, project);
     doc.end();
   } catch (error) {
     next(error);

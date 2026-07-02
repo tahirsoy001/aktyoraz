@@ -1582,6 +1582,17 @@ h1 {
   margin-bottom: 18px;
 }
 
+.director-board-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.director-board-actions .button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .director-board-head h2,
 .director-role-head h3 {
   margin: 0;
@@ -3743,6 +3754,11 @@ h1 {
   .director-role-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .director-board-actions,
+  .director-board-actions .button {
+    width: 100%;
   }
 
   .director-cast-card a,

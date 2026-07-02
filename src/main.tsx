@@ -14,6 +14,7 @@ import {
   deleteAdminMedia,
   deleteApplication,
   deleteAdminNewsPost,
+  exportDirectorProjectPdf,
   fetchAiCastingFeedback,
   fetchActorsFromApi,
   fetchAuditLogs,
@@ -1897,6 +1898,7 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [actorDrafts, setActorDrafts] = useState<Record<string, string>>({});
   const [draggedRoleId, setDraggedRoleId] = useState("");
+  const [exportingProjectId, setExportingProjectId] = useState("");
   const activeProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0];
 
   useEffect(() => {
@@ -2029,6 +2031,39 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
     setSelectedProjectId(nextProjects[0]?.id ?? "");
   }
 
+  async function exportActiveProject() {
+    if (!activeProject || exportingProjectId) {
+      return;
+    }
+
+    setExportingProjectId(activeProject.id);
+
+    try {
+      const blob = await exportDirectorProjectPdf({
+        createdAt: activeProject.createdAt,
+        name: activeProject.name,
+        roles: activeProject.roles.map((role) => ({
+          actorIds: role.actorIds,
+          name: role.name,
+        })),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `${slugify(activeProject.name) || "aktyoraz-layihe"}-cast-board.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("PDF eksport alınmadı. Bir az sonra yenidən yoxlayın.");
+    } finally {
+      setExportingProjectId("");
+    }
+  }
+
   return (
     <main className="page-shell director-page">
       <Header />
@@ -2084,9 +2119,19 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
                   <span>{new Date(activeProject.createdAt).toLocaleDateString("az-AZ")}</span>
                   <h2>{activeProject.name}</h2>
                 </div>
-                <button className="button secondary" onClick={() => removeProject(activeProject.id)} type="button">
-                  Layihəni sil
-                </button>
+                <div className="director-board-actions">
+                  <button
+                    className="button"
+                    disabled={exportingProjectId === activeProject.id}
+                    onClick={exportActiveProject}
+                    type="button"
+                  >
+                    {exportingProjectId === activeProject.id ? "Hazırlanır..." : "Eksport"}
+                  </button>
+                  <button className="button secondary" onClick={() => removeProject(activeProject.id)} type="button">
+                    Layihəni sil
+                  </button>
+                </div>
               </div>
               <div className="director-role-create">
                 <input

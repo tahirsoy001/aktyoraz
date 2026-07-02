@@ -408,3 +408,28 @@ export function getActorQrSvgUrl(actorId: string) {
 export function getActorCardPdfUrl(actorId: string) {
   return `${API_BASE_URL}/actors/${encodeURIComponent(actorId)}/card.pdf`;
 }
+
+export type DirectorExportProject = {
+  createdAt?: string;
+  name: string;
+  roles: Array<{
+    actorIds: string[];
+    name: string;
+  }>;
+};
+
+export async function exportDirectorProjectPdf(project: DirectorExportProject) {
+  const response = await fetch(`${API_BASE_URL}/director/export.pdf`, {
+    body: JSON.stringify({ project }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`PDF export error ${response.status}`);
+  }
+
+  return response.blob();
+}
