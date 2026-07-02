@@ -317,7 +317,7 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
   if (path === "/education") {
     return {
       canonical: `${SITE_URL}/education`,
-      description: "Aktyor.az təhsil bölməsi kino, serial, səhnə və kamera təcrübəsi üçün təlim proqramları, film posterləri və qeydiyyat anketlərini təqdim edir.",
+      description: "Aktyor.az təhsil bölməsi aktyor hazırlığı üçün müraciət anketlərini və tədris müddətində çəkilən filmlərin posterlərini təqdim edir.",
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -2521,11 +2521,60 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
 }
 
 function EducationPage({ items }: { items: EducationItem[] }) {
-  const [selectedItemId, setSelectedItemId] = useState<number | "">("");
+  const applicationOptions = [
+    {
+      description: "Platformada aktyor profili yaratmaq və rəqəmsal vizit kartı almaq üçün.",
+      title: "Bazaya qoşul",
+    },
+    {
+      description: "Kamera, səhnə nitqi və kastinq hazırlığı üzrə təhsil müraciəti.",
+      title: "Təhsil qeydiyyatı",
+    },
+    {
+      description: "Gələcək kino, serial və reklam layihələri üçün ayrıca anket.",
+      title: "Layihə anketi",
+    },
+  ];
+  const samplePosters: EducationItem[] = [
+    {
+      category: "Tədris filmləri",
+      createdAt: "",
+      description: "Tədris müddətində çəkilən qısametrajlı film nümunəsi.",
+      excerpt: "Tədris filmi",
+      id: -1,
+      slug: "numune-film-1",
+      status: "published",
+      title: "Sınaq səhnəsi",
+      updatedAt: "",
+    },
+    {
+      category: "Tədris filmləri",
+      createdAt: "",
+      description: "Kamera qarşısında oyun və obraz quruluşu üzrə nümunə poster.",
+      excerpt: "Kamera məşqi",
+      id: -2,
+      slug: "numune-film-2",
+      status: "published",
+      title: "Kamera məşqi",
+      updatedAt: "",
+    },
+    {
+      category: "Tədris filmləri",
+      createdAt: "",
+      description: "Aktyorların tədris prosesində hazırladığı layihə posteri.",
+      excerpt: "Aktyor işi",
+      id: -3,
+      slug: "numune-film-3",
+      status: "published",
+      title: "Obraz işi",
+      updatedAt: "",
+    },
+  ];
+  const [activeApplication, setActiveApplication] = useState(applicationOptions[0].title);
   const [form, setForm] = useState({ name: "", note: "", phone: "" });
   const [message, setMessage] = useState("");
-  const categories = Array.from(new Set(items.map((item) => item.category || "Təhsil")));
-  const selectedItem = items.find((item) => item.id === selectedItemId);
+  const posterItems = items.length ? items : samplePosters;
+  const categories = Array.from(new Set(posterItems.map((item) => item.category || "Tədris filmləri")));
 
   async function submitEducationApplication(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -2533,14 +2582,12 @@ function EducationPage({ items }: { items: EducationItem[] }) {
 
     try {
       await createEducationApplication({
-        courseTitle: selectedItem?.title,
-        itemId: selectedItem?.id,
+        courseTitle: activeApplication,
         name: form.name,
         note: form.note,
         phone: form.phone,
       });
       setForm({ name: "", note: "", phone: "" });
-      setSelectedItemId("");
       setMessage("Müraciət qəbul olundu. Komandamız sizinlə əlaqə saxlayacaq.");
     } catch {
       setMessage("Müraciət göndərilmədi. Zəhmət olmasa bir az sonra yenidən yoxlayın.");
@@ -2555,30 +2602,29 @@ function EducationPage({ items }: { items: EducationItem[] }) {
           <p className="eyebrow">Aktyor.az Təhsil</p>
           <h1>Kamera, səhnə və kastinq hazırlığı üçün təhsil bölməsi.</h1>
           <p className="lead">
-            Təlim proqramları, çəkiliş nümunələri və qeydiyyat anketləri bir yerdə toplanır. Burada
-            gələcək aktyor profillərinin peşəkar hazırlıq mərhələsi ayrıca sənədləşdirilir.
+            Bazaya qoşulmaq, təhsil qeydiyyatı və gələcək layihələr üçün müraciətlər bir mərkəzdə toplanır.
+            Aşağı hissədə tədris müddətində çəkilən filmlərin posterləri nümayiş olunur.
           </p>
         </div>
         <form className="education-apply-card" onSubmit={submitEducationApplication}>
           <div>
-            <p className="eyebrow">Təhsil üçün qeydiyyat</p>
-            <h2>Anket</h2>
-            <p>Müraciət edən şəxsin əlaqə məlumatları admin panelə düşür.</p>
+            <p className="eyebrow">Müraciət mərkəzi</p>
+            <h2>{activeApplication}</h2>
+            <p>Uyğun anketi seç, məlumatları göndər və komanda müraciəti admin paneldən izləsin.</p>
           </div>
-          <label>
-            Proqram
-            <select
-              onChange={(event) => setSelectedItemId(event.target.value ? Number(event.target.value) : "")}
-              value={selectedItemId}
-            >
-              <option value="">Ümumi müraciət</option>
-              {items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="education-form-options">
+            {applicationOptions.map((option) => (
+              <button
+                className={activeApplication === option.title ? "education-form-option active" : "education-form-option"}
+                key={option.title}
+                onClick={() => setActiveApplication(option.title)}
+                type="button"
+              >
+                <strong>{option.title}</strong>
+                <span>{option.description}</span>
+              </button>
+            ))}
+          </div>
           <label>
             Ad soyad
             <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
@@ -2599,13 +2645,13 @@ function EducationPage({ items }: { items: EducationItem[] }) {
       <section className="section education-catalog">
         {categories.length ? (
           categories.map((category) => {
-            const categoryItems = items.filter((item) => item.category === category);
+            const categoryItems = posterItems.filter((item) => (item.category || "Tədris filmləri") === category);
 
             return (
               <div className="education-row" key={category}>
                 <div className="section-heading-row">
                   <h2>{category}</h2>
-                  <span>{categoryItems.length} proqram</span>
+                  <span>{categoryItems.length} poster</span>
                 </div>
                 <div className="education-poster-track">
                   {categoryItems.map((item) => (
@@ -2620,13 +2666,6 @@ function EducationPage({ items }: { items: EducationItem[] }) {
                       <div>
                         <h3>{item.title}</h3>
                         <p>{item.excerpt || item.description}</p>
-                        <button
-                          className="button secondary"
-                          onClick={() => setSelectedItemId(item.id)}
-                          type="button"
-                        >
-                          Seç
-                        </button>
                       </div>
                     </article>
                   ))}
@@ -2636,8 +2675,8 @@ function EducationPage({ items }: { items: EducationItem[] }) {
           })
         ) : (
           <div className="empty-state">
-            <h2>Təhsil proqramları hazırlanır</h2>
-            <p>Admin paneldən poster və proqram əlavə ediləndə burada Netflix stilində görünəcək.</p>
+            <h2>Poster əlavə edilməyib</h2>
+            <p>Admin paneldən tədris filmlərinin posterlərini əlavə etdikcə burada slide kimi görünəcək.</p>
           </div>
         )}
       </section>
@@ -3896,7 +3935,7 @@ function AdminPage({
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
     { id: "news", label: "Xəbərlər", meta: `${newsPosts.length} xəbər` },
-    { id: "education", label: "Təhsil", meta: `${educationItems.length} proqram` },
+    { id: "education", label: "Təhsil", meta: `${educationItems.length} poster` },
     { id: "media", label: "Media", meta: `${mediaFiles.length} fayl` },
     { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
     { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd` },
@@ -4013,7 +4052,7 @@ function AdminPage({
       id: formValue.id,
       title: formValue.title.trim(),
       slug: formValue.slug.trim() || slugify(formValue.title),
-      category: formValue.category.trim() || "Təhsil",
+      category: formValue.category.trim() || "Tədris filmləri",
       excerpt: formValue.excerpt.trim(),
       description: formValue.description.trim(),
       posterImage: formValue.posterImage.trim() || undefined,
@@ -4024,15 +4063,15 @@ function AdminPage({
 
   async function submitEducation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setEducationMessage("Təhsil proqramı saxlanılır...");
+    setEducationMessage("Təhsil posteri saxlanılır...");
 
     try {
       await onSaveEducationItem(formToEducationItem(educationForm));
       resetEducationForm();
-      setEducationMessage("Təhsil proqramı saxlanıldı.");
+      setEducationMessage("Təhsil posteri saxlanıldı.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "naməlum xəta";
-      setEducationMessage(`Təhsil proqramı saxlanmadı: ${message}`);
+      setEducationMessage(`Təhsil posteri saxlanmadı: ${message}`);
     }
   }
 
@@ -4044,12 +4083,12 @@ function AdminPage({
   }
 
   async function removeEducation(id: number) {
-    setEducationMessage("Təhsil proqramı silinir...");
+    setEducationMessage("Təhsil posteri silinir...");
     await onDeleteEducationItem(id);
     if (educationForm.id === id) {
       resetEducationForm();
     }
-    setEducationMessage("Təhsil proqramı silindi.");
+    setEducationMessage("Təhsil posteri silindi.");
   }
 
   async function submitActor(event: FormEvent<HTMLFormElement>) {
@@ -5142,7 +5181,7 @@ function AdminPage({
         </div>
         <form className="admin-form news-admin-form" onSubmit={submitEducation}>
           <div className="form-header">
-            <h2>{educationForm.id ? "Təhsil proqramı redaktə olunur" : "Yeni təhsil proqramı"}</h2>
+            <h2>{educationForm.id ? "Poster redaktə olunur" : "Yeni film posteri"}</h2>
             <button className="button secondary" onClick={resetEducationForm} type="button">
               Təmizlə
             </button>
@@ -5223,7 +5262,7 @@ function AdminPage({
           )}
           {educationMessage && <div className="upload-state">{educationMessage}</div>}
           <button className="button" type="submit">
-            {educationForm.id ? "Proqramı yadda saxla" : "Proqram əlavə et"}
+            {educationForm.id ? "Posteri yadda saxla" : "Poster əlavə et"}
           </button>
         </form>
         <div className="admin-table news-admin-list">
@@ -5260,8 +5299,8 @@ function AdminPage({
             ))
           ) : (
             <div className="empty-state">
-              <h2>Təhsil proqramı yoxdur</h2>
-              <p>İlk posterli təhsil proqramını yuxarıdakı formadan əlavə et.</p>
+              <h2>Poster yoxdur</h2>
+              <p>Tədris müddətində çəkilən filmlərin ilk posterini yuxarıdakı formadan əlavə et.</p>
             </div>
           )}
         </div>

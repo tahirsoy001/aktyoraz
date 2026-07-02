@@ -3196,7 +3196,7 @@ h1 {
     linear-gradient(120deg, #0b0b0f, #111114 55%, #09090b);
   display: grid;
   gap: 34px;
-  grid-template-columns: minmax(360px, 1fr) minmax(360px, 460px);
+  grid-template-columns: minmax(360px, 0.82fr) minmax(520px, 0.88fr);
   padding: 70px clamp(18px, 4vw, 56px) 44px;
 }
 
@@ -3239,6 +3239,55 @@ h1 {
   color: rgba(255, 255, 255, 0.68);
   line-height: 1.5;
   margin: 0;
+}
+
+.education-form-options {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.education-form-option {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  min-height: 118px;
+  padding: 12px;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.education-form-option:hover {
+  border-color: rgba(var(--accent-rgb), 0.58);
+  transform: translateY(-1px);
+}
+
+.education-form-option.active {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.96), rgba(105, 24, 184, 0.88));
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 38px rgba(var(--accent-rgb), 0.22);
+}
+
+.education-form-option strong {
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.education-form-option span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.education-form-option.active span {
+  color: rgba(255, 255, 255, 0.86);
 }
 
 .education-apply-card label {
@@ -3332,7 +3381,7 @@ h1 {
 
 .education-poster-card > div:last-child {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   padding: 14px;
 }
 
@@ -3868,6 +3917,10 @@ h1 {
     padding: 36px 18px;
   }
 
+  .education-form-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .education-poster-track {
     grid-auto-columns: 220px;
   }
@@ -3900,6 +3953,14 @@ h1 {
 
   .education-apply-card {
     padding: 16px;
+  }
+
+  .education-form-options {
+    grid-template-columns: 1fr;
+  }
+
+  .education-form-option {
+    min-height: auto;
   }
 
   .top-five-rail {
