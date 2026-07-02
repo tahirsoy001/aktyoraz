@@ -1593,13 +1593,20 @@ h1 {
 }
 
 .director-role-grid {
-  grid-template-columns: 1fr;
+  align-items: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .director-role-card {
+  cursor: grab;
   display: grid;
   gap: 14px;
+  min-width: 0;
   padding: 16px;
+}
+
+.director-role-card.dragging {
+  opacity: 0.55;
 }
 
 .director-role-head button,
@@ -1612,6 +1619,20 @@ h1 {
   font-weight: 900;
   min-height: 32px;
   padding: 0 12px;
+}
+
+.director-role-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.director-drag-handle {
+  background: #f4ecff !important;
+  border-color: #dfc6ff !important;
+  color: var(--brand) !important;
+  cursor: grab !important;
+  padding-inline: 10px !important;
 }
 
 .director-assign-row {
@@ -1632,7 +1653,7 @@ h1 {
 }
 
 .director-cast-list {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
 }
 
 .director-cast-card a,
@@ -3341,11 +3362,11 @@ h1 {
   }
 
   .director-role-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .director-cast-list {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   }
 
   .admin-console {
@@ -3694,6 +3715,10 @@ h1 {
   .director-assign-row,
   .director-cast-list,
   .director-cast-card {
+    grid-template-columns: 1fr;
+  }
+
+  .director-role-grid {
     grid-template-columns: 1fr;
   }
 

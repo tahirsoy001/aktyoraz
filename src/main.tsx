@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, ImgHTMLAttributes, StrictMode, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, ImgHTMLAttributes, StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AdminSession,
@@ -1896,6 +1896,7 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [actorDrafts, setActorDrafts] = useState<Record<string, string>>({});
+  const [draggedRoleId, setDraggedRoleId] = useState("");
   const activeProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0];
 
   useEffect(() => {
@@ -2001,6 +2002,27 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
     }));
   }
 
+  function moveRole(sourceRoleId: string, targetRoleId: string) {
+    if (!sourceRoleId || sourceRoleId === targetRoleId) {
+      return;
+    }
+
+    updateActiveProject((project) => {
+      const sourceIndex = project.roles.findIndex((role) => role.id === sourceRoleId);
+      const targetIndex = project.roles.findIndex((role) => role.id === targetRoleId);
+
+      if (sourceIndex < 0 || targetIndex < 0) {
+        return project;
+      }
+
+      const roles = [...project.roles];
+      const [role] = roles.splice(sourceIndex, 1);
+      roles.splice(targetIndex, 0, role);
+
+      return { ...project, roles };
+    });
+  }
+
   function removeProject(projectId: string) {
     const nextProjects = projects.filter((project) => project.id !== projectId);
     commitProjects(nextProjects);
@@ -2090,13 +2112,44 @@ function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist
                       .filter(Boolean) as Actor[];
 
                     return (
-                      <article className="director-role-card" key={role.id}>
+                      <article
+                        className={`director-role-card${draggedRoleId === role.id ? " dragging" : ""}`}
+                        draggable
+                        key={role.id}
+                        onDragEnd={() => setDraggedRoleId("")}
+                        onDragOver={(event: DragEvent<HTMLElement>) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                        }}
+                        onDragStart={(event: DragEvent<HTMLElement>) => {
+                          const target = event.target as HTMLElement;
+
+                          if (target.closest("select, a, .director-cast-card > button, .director-role-actions button:not(.director-drag-handle)")) {
+                            event.preventDefault();
+                            return;
+                          }
+
+                          setDraggedRoleId(role.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", role.id);
+                        }}
+                        onDrop={(event: DragEvent<HTMLElement>) => {
+                          event.preventDefault();
+                          moveRole(draggedRoleId || event.dataTransfer.getData("text/plain"), role.id);
+                          setDraggedRoleId("");
+                        }}
+                      >
                         <div className="director-role-head">
                           <div>
                             <h3>{role.name}</h3>
                             <span>{assignedActors.length} namizəd</span>
                           </div>
-                          <button onClick={() => removeRole(role.id)} type="button">Sil</button>
+                          <div className="director-role-actions">
+                            <button className="director-drag-handle" type="button" aria-label={`${role.name} sırasını dəyiş`}>
+                              ↕
+                            </button>
+                            <button onClick={() => removeRole(role.id)} type="button">Sil</button>
+                          </div>
                         </div>
                         <div className="director-assign-row">
                           <select
