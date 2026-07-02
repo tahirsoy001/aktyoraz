@@ -2927,6 +2927,53 @@ h1 {
   margin: 0;
 }
 
+.about-grid a,
+.about-copy a,
+.about-legal a {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.about-copy,
+.about-legal {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.03);
+  display: grid;
+  gap: 26px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 28px;
+}
+
+.about-copy h2,
+.about-legal h2 {
+  margin: 0 0 12px;
+}
+
+.about-copy p,
+.about-legal p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.about-copy p + p {
+  margin-top: 14px;
+}
+
+.about-legal {
+  display: block;
+}
+
+.about-legal-grid {
+  display: grid;
+  gap: 16px 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
 .medal-rules-section {
   scroll-margin-top: 120px;
 }
@@ -3139,6 +3186,8 @@ h1 {
 
   .actor-grid,
   .about-grid,
+  .about-copy,
+  .about-legal-grid,
   .ai-analysis-grid,
   .ai-result-grid,
   .catalog-controls,
@@ -3318,6 +3367,8 @@ h1 {
 
   .filters,
   .about-grid,
+  .about-copy,
+  .about-legal-grid,
   .actor-grid,
   .ai-analysis-grid,
   .ai-result-grid,

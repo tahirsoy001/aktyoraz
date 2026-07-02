@@ -293,14 +293,31 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
   if (path === "/about") {
     return {
       canonical: `${SITE_URL}/about`,
-      description: "Aktyor.az haqqında məlumat, aktyor profilləri, rəqəmsal təsdiq kartları və medal alma qaydaları.",
+      description: "Azərbaycan Aktyor və Aktrisa Bazası aktyor profilləri, AI kastinq, rəqəmsal vizit kartı, təsdiq sistemi və peşəkar portfolio bazasıdır.",
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "AboutPage",
+        about: [
+          "Azərbaycan aktyor bazası",
+          "aktrisa bazası",
+          "AI kastinq",
+          "rəqəmsal aktyor profili",
+          "kino və televiziya kastinq platforması",
+        ],
+        description: "AAAb Azərbaycan kino, televiziya, reklam, teatr və rəqəmsal media layihələri üçün aktyor və aktrisa profillərini vahid rəqəmsal bazada təqdim edir.",
         name: "Aktyor.az haqqında",
+        publisher: {
+          "@type": "Organization",
+          address: "Xətai pr. 172e",
+          contactPoint: {
+            "@type": "ContactPoint",
+            telephone: "+994703366072",
+          },
+          name: "Azərbaycan Aktyor və Aktrisa Bazası",
+        },
         url: `${SITE_URL}/about`,
       },
-      title: "Haqqımızda və medal alma qaydaları | Aktyor.az",
+      title: "Haqqımızda - Azərbaycan Aktyor və Aktrisa Bazası | Aktyor.az",
     };
   }
 
@@ -1980,28 +1997,83 @@ function AboutPage() {
       <Header />
       <section className="section about-hero">
         <p className="eyebrow">Haqqımızda</p>
-        <h1>Azərbaycan aktyor və aktrisa bazası.</h1>
+        <h1>Azərbaycan Aktyor və Aktrisa Bazası.</h1>
         <p className="lead">
-          Aktyor.az aktyor, aktrisa və uşaq aktyor profillərini kastinq komandaları üçün
-          səliqəli formada təqdim edən, rəqəmsal ID və təsdiq kartı məntiqi ilə işləyən
-          peşəkar baza sistemidir.
+          Azərbaycan Aktyor və Aktrisa Bazası (AAAb) 2020-ci ildə Azərbaycan kino və
+          televiziya sənayesinin rəqəmsal transformasiyasına töhfə vermək üçün yaradılmış
+          peşəkar aktyor bazası, AI kastinq və rəqəmsal profil platformasıdır.
         </p>
       </section>
 
       <section className="section about-grid">
         <article>
-          <h2>Nə üçün yaradılıb?</h2>
+          <h2>Missiyamız</h2>
           <p>
-            Məqsəd rejissor və prodüserlərin uyğun aktyoru daha tez tapması, aktyorların
-            isə yoxlanılmış profil, portfolio və rəqəmsal təsdiq səhifəsi ilə təqdim
-            olunmasıdır.
+            Platformanın əsas missiyası Azərbaycan aktyor və aktrisalarını vahid rəqəmsal
+            bazada toplamaq, aktyor olmaq istəyənlər üçün peşəkar təqdimat imkanı yaratmaq
+            və kastinq prosesini rejissorlar, prodüserlər, kastinq direktorları və yaradıcı
+            komandalar üçün daha sürətli, dəqiq və effektiv etməkdir.
           </p>
         </article>
         <article>
-          <h2>Profil təsdiqi</h2>
+          <h2>Rəqəmsal aktyor vizit kartı</h2>
           <p>
-            Profil məlumatları admin tərəfindən yoxlanılır, foto standartı qorunur və
-            kartların aktiv/deaktiv statusu ayrıca idarə olunur.
+            AAAb hər aktyor üçün sadəcə profil səhifəsi deyil, həm də peşəkar fəaliyyəti
+            əks etdirən rəqəmsal vizit kartı, təsdiqlənmiş aktyor profili və şəxsi film
+            bioqrafiyası rolunu oynayır.
+          </p>
+        </article>
+      </section>
+
+      <section className="section about-copy">
+        <div>
+          <h2>Aktyor profili nəyi əhatə edir?</h2>
+          <p>
+            Platformadakı profil aktyorun təhsilini, təcrübəsini, bacarıqlarını, film və
+            teatr işlərini, foto və videolarını, fiziki xüsusiyyətlərini, əlaqə məlumatlarını
+            və digər peşəkar göstəricilərini bir məkanda təqdim edir. Bu baxımdan Aktyor.az
+            aktyorun karyerasını sistemli şəkildə sənədləşdirən və daim yenilənən peşəkar
+            film bioqrafiyası xarakteri daşıyır.
+          </p>
+          <p>
+            Məqsəd yalnız aktyor siyahısı yaratmaq deyil, Azərbaycan kino sənayesində
+            kastinq prosesini müasir texnologiyalarla inkişaf etdirmək, istedadlı aktyorların
+            görünürlüğünü artırmaq və yaradıcı komandalar arasında peşəkar əlaqələri
+            gücləndirməkdir.
+          </p>
+        </div>
+        <div>
+          <h2>AI Kastinq sistemi</h2>
+          <p>
+            Platformanın mühüm yeniliklərindən biri AI Kastinq sistemidir. Ənənəvi kastinq
+            axtarışlarından fərqli olaraq, AI Kastinq yalnız xarici görünüşə əsaslanmır.
+            Rejissor və ssenaristlər axtardıqları obrazı xarakter, psixoloji xüsusiyyət,
+            temperament, emosional quruluş, davranış modeli, yaş, görünüş və rol tələbləri
+            ilə təbii dildə təsvir edə bilirlər.
+          </p>
+          <p>
+            Süni intellekt bu təsviri analiz edərək bazadakı real aktyor profilləri arasından
+            ən uyğun namizədləri təqdim edir. Beləliklə, yaradıcı komandalar sadəcə üz
+            axtarmır, canlandırmaq istədikləri obrazın xarakterinə uyğun aktyoru daha sürətli
+            tapa bilirlər.
+          </p>
+        </div>
+      </section>
+
+      <section className="section about-grid">
+        <article>
+          <h2>Sənaye üçün rəqəmsal ekosistem</h2>
+          <p>
+            Azərbaycan Aktyor və Aktrisa Bazası ölkənin kino, televiziya, reklam, teatr və
+            rəqəmsal media layihələri üçün etibarlı aktyor məlumat bazası olmağı hədəfləyir.
+          </p>
+        </article>
+        <article>
+          <h2>Əlaqə</h2>
+          <p>
+            Telefon: <a href="tel:+994703366072">+994 70 336 60 72</a>
+            <br />
+            Ünvan: Xətai pr. 172e
           </p>
         </article>
       </section>
@@ -2023,6 +2095,44 @@ function AboutPage() {
               </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="section about-legal">
+        <p className="eyebrow">Hüquqi məsuliyyət və istifadə qaydaları</p>
+        <h2>AAAb rəqəmsal vasitəçi platformadır.</h2>
+        <div className="about-legal-grid">
+          <p>
+            Azərbaycan Aktyor və Aktrisa Bazası platformada yerləşdirilən aktyor və aktrisa
+            məlumatlarının tam düzgünlüyünə, aktuallığına və həqiqiliyinə görə məsuliyyət
+            daşımır. Hər bir istifadəçi təqdim etdiyi bioqrafiya, portfolio, foto, video,
+            əlaqə və digər şəxsi-peşəkar məlumatlara görə özü məsuliyyət daşıyır.
+          </p>
+          <p>
+            Platformanın əsas məqsədi aktyorlar, aktrisalar, rejissorlar, prodüserlər,
+            kastinq direktorları, reklam agentlikləri və digər kino istehsalçılarını vahid
+            rəqəmsal məkanda bir araya gətirməkdir.
+          </p>
+          <p>
+            AAAb vasitəsilə tanış olan tərəflər arasında yaranan hüquqi, maliyyə, əmək,
+            müəllif hüquqları, ödəniş, müqavilə və çəkiliş prosesi ilə bağlı münasibətlər
+            platformanın məsuliyyət dairəsinə daxil deyil.
+          </p>
+          <p>
+            Çəkiliş zamanı və ya əməkdaşlıq prosesində baş verə biləcək dələduzluq,
+            anlaşılmazlıq, ödəniş problemi, müqavilə pozuntusu, zərər və ya digər hüquqi
+            mübahisələrə görə AAAb məsuliyyət daşımır.
+          </p>
+          <p>
+            Rejissorlar, prodüserlər və aktyorlar əməkdaşlığa başlamazdan əvvəl qarşı tərəfin
+            şəxsiyyətini, hüquqi statusunu, layihə şərtlərini və ödəniş məsələlərini müstəqil
+            şəkildə yoxlamalı, zəruri hallarda yazılı müqavilə bağlamalıdırlar.
+          </p>
+          <p>
+            Azərbaycan Aktyor və Aktrisa Bazası yalnız rəqəmsal vasitəçi platformadır və
+            platformadan kənarda baş verən hüquqi, maliyyə və ya peşəkar münasibətlərin
+            tərəfi hesab olunmur.
+          </p>
         </div>
       </section>
     </main>
