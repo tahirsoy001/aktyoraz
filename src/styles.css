@@ -470,6 +470,7 @@ h1 {
   animation: collage-float-a 8.2s ease-in-out infinite;
   grid-column: 3 / 5;
   grid-row: 1 / 3;
+  z-index: 3;
 }
 
 .collage-insight {
@@ -1479,6 +1480,188 @@ h1 {
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
+}
+
+.director-hero {
+  align-items: end;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+}
+
+.director-create,
+.director-role-create,
+.director-assign-row {
+  display: grid;
+  gap: 10px;
+}
+
+.director-create {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.director-layout {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  padding-top: 0;
+}
+
+.director-sidebar,
+.director-board,
+.director-role-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.director-sidebar,
+.director-board {
+  padding: 18px;
+}
+
+.director-sidebar {
+  position: sticky;
+  top: 112px;
+}
+
+.director-sidebar-head,
+.director-board-head,
+.director-role-head {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.director-sidebar-head span,
+.director-board-head span,
+.director-role-head span,
+.muted-copy {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.director-project-list,
+.director-role-grid,
+.director-cast-list {
+  display: grid;
+  gap: 12px;
+}
+
+.director-project-list {
+  margin-top: 14px;
+}
+
+.director-project {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  text-align: left;
+}
+
+.director-project.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.director-project span {
+  color: inherit;
+  opacity: 0.68;
+}
+
+.director-board-head {
+  margin-bottom: 18px;
+}
+
+.director-board-head h2,
+.director-role-head h3 {
+  margin: 0;
+}
+
+.director-role-create {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 18px;
+}
+
+.director-role-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.director-role-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.director-role-head button,
+.director-cast-card > button {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 999px;
+  color: #9f1239;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.director-assign-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.director-cast-card {
+  align-items: center;
+  background: #fbfbf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  padding: 10px;
+}
+
+.director-cast-card a,
+.director-cast-card img,
+.director-cast-card a > span {
+  border-radius: 6px;
+  display: block;
+  height: 88px;
+  overflow: hidden;
+  width: 76px;
+}
+
+.director-cast-card img {
+  object-fit: cover;
+}
+
+.director-cast-card a > span {
+  align-items: center;
+  background: linear-gradient(145deg, #241135, #8d28e4);
+  color: #ffffff;
+  display: flex;
+  font-weight: 900;
+  justify-content: center;
+}
+
+.director-cast-card strong,
+.director-cast-card small {
+  display: block;
+}
+
+.director-cast-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 4px;
 }
 
 .profile-detail-grid,
@@ -3126,7 +3309,17 @@ h1 {
   .ai-search-page,
   .catalog-ai-layout,
   .browse-hero,
+  .director-hero,
+  .director-layout,
   .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .director-sidebar {
+    position: static;
+  }
+
+  .director-role-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3469,6 +3662,32 @@ h1 {
 
   .news-detail-cover {
     aspect-ratio: 4 / 3;
+  }
+
+  .director-create,
+  .director-role-create,
+  .director-assign-row,
+  .director-cast-card {
+    grid-template-columns: 1fr;
+  }
+
+  .director-board,
+  .director-sidebar,
+  .director-role-card {
+    padding: 14px;
+  }
+
+  .director-board-head,
+  .director-role-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .director-cast-card a,
+  .director-cast-card img,
+  .director-cast-card a > span {
+    height: 180px;
+    width: 100%;
   }
 
   .row-actions {

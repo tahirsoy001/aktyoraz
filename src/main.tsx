@@ -49,6 +49,7 @@ import "./styles.css";
 const STORAGE_KEY = "aktyor-az-actors";
 const VOTES_KEY = "aktyor-az-votes";
 const SHORTLIST_KEY = "aktyor-az-shortlist";
+const DIRECTOR_PROJECTS_KEY = "aktyor-az-director-projects";
 const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
 const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
@@ -119,6 +120,19 @@ const ACTOR_MEDALS = [
 type ActorMedalId = (typeof ACTOR_MEDALS)[number]["id"];
 
 const ACTOR_MEDAL_IDS = new Set<string>(ACTOR_MEDALS.map((medal) => medal.id));
+
+type DirectorRole = {
+  actorIds: string[];
+  id: string;
+  name: string;
+};
+
+type DirectorProject = {
+  createdAt: string;
+  id: string;
+  name: string;
+  roles: DirectorRole[];
+};
 
 type SeoConfig = {
   canonical: string;
@@ -355,6 +369,15 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
       description: "Rejissor və kastinq komandaları üçün AI əsaslı aktyor tövsiyə sistemi.",
       noindex: false,
       title: "AI kastinq axtarışı | Aktyor.az",
+    };
+  }
+
+  if (path === "/director") {
+    return {
+      canonical: `${SITE_URL}/director`,
+      description: "Rejissor və kastinq komandaları üçün layihə, obraz və seçilmiş aktyorları eyni ekranda toplamaq kabineti.",
+      noindex: true,
+      title: "Rejissor kabineti | Aktyor.az",
     };
   }
 
@@ -877,6 +900,36 @@ function saveShortlist(nextShortlist: string[]) {
   window.localStorage.setItem(SHORTLIST_KEY, JSON.stringify(nextShortlist));
 }
 
+function normalizeDirectorProjects(projects: Partial<DirectorProject>[]) {
+  return projects
+    .filter((project) => project.name)
+    .map((project) => ({
+      createdAt: project.createdAt ?? new Date().toISOString(),
+      id: project.id ?? crypto.randomUUID(),
+      name: project.name ?? "Adsız layihə",
+      roles: (project.roles ?? [])
+        .filter((role) => role.name)
+        .map((role) => ({
+          actorIds: Array.isArray(role.actorIds) ? [...new Set(role.actorIds)] : [],
+          id: role.id ?? crypto.randomUUID(),
+          name: role.name ?? "Obraz",
+        })),
+    }));
+}
+
+function readDirectorProjects() {
+  try {
+    const savedProjects = window.localStorage.getItem(DIRECTOR_PROJECTS_KEY);
+    return savedProjects ? normalizeDirectorProjects(JSON.parse(savedProjects) as Partial<DirectorProject>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDirectorProjects(projects: DirectorProject[]) {
+  window.localStorage.setItem(DIRECTOR_PROJECTS_KEY, JSON.stringify(projects));
+}
+
 function getVoterId() {
   const savedVoterId = window.localStorage.getItem(VOTER_KEY);
 
@@ -1163,6 +1216,9 @@ function Header() {
         </a>
         <a className={isActive("/casting-ai") ? "nav-link active" : "nav-link"} href="/casting-ai">
           AI kastinq
+        </a>
+        <a className={isActive("/director") ? "nav-link active" : "nav-link"} href="/director">
+          Rejissor kabineti
         </a>
         <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
           Bazaya qoşul
@@ -1823,6 +1879,287 @@ function ShortlistPage({
             </a>
           </div>
         )}
+      </section>
+    </main>
+  );
+}
+
+function DirectorCabinetPage({ actors, shortlist }: { actors: Actor[]; shortlist: string[] }) {
+  const publicActors = useMemo(
+    () => sortByRating(actors.filter((actor) => actor.status !== "inactive")),
+    [actors],
+  );
+  const favoriteActors = publicActors.filter((actor) => shortlist.includes(actor.id));
+  const otherActors = publicActors.filter((actor) => !shortlist.includes(actor.id));
+  const [projects, setProjects] = useState<DirectorProject[]>(readDirectorProjects);
+  const [projectName, setProjectName] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
+  const [actorDrafts, setActorDrafts] = useState<Record<string, string>>({});
+  const activeProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0];
+
+  useEffect(() => {
+    if (!projects.length) {
+      setSelectedProjectId("");
+      return;
+    }
+
+    if (!activeProject) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [activeProject, projects]);
+
+  function commitProjects(nextProjects: DirectorProject[]) {
+    setProjects(nextProjects);
+    saveDirectorProjects(nextProjects);
+  }
+
+  function createProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = projectName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    const project: DirectorProject = {
+      createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(),
+      name,
+      roles: [],
+    };
+
+    commitProjects([project, ...projects]);
+    setSelectedProjectId(project.id);
+    setProjectName("");
+  }
+
+  function updateActiveProject(updater: (project: DirectorProject) => DirectorProject) {
+    if (!activeProject) {
+      return;
+    }
+
+    commitProjects(projects.map((project) => (project.id === activeProject.id ? updater(project) : project)));
+  }
+
+  function addRole(projectId: string) {
+    const roleName = roleDrafts[projectId]?.trim();
+
+    if (!roleName) {
+      return;
+    }
+
+    commitProjects(projects.map((project) => (
+      project.id === projectId
+        ? {
+            ...project,
+            roles: [
+              ...project.roles,
+              {
+                actorIds: [],
+                id: crypto.randomUUID(),
+                name: roleName,
+              },
+            ],
+          }
+        : project
+    )));
+    setRoleDrafts((current) => ({ ...current, [projectId]: "" }));
+  }
+
+  function assignActor(roleId: string) {
+    const actorId = actorDrafts[roleId];
+
+    if (!actorId) {
+      return;
+    }
+
+    updateActiveProject((project) => ({
+      ...project,
+      roles: project.roles.map((role) => (
+        role.id === roleId
+          ? { ...role, actorIds: role.actorIds.includes(actorId) ? role.actorIds : [...role.actorIds, actorId] }
+          : role
+      )),
+    }));
+    setActorDrafts((current) => ({ ...current, [roleId]: "" }));
+  }
+
+  function removeActorFromRole(roleId: string, actorId: string) {
+    updateActiveProject((project) => ({
+      ...project,
+      roles: project.roles.map((role) => (
+        role.id === roleId ? { ...role, actorIds: role.actorIds.filter((id) => id !== actorId) } : role
+      )),
+    }));
+  }
+
+  function removeRole(roleId: string) {
+    updateActiveProject((project) => ({
+      ...project,
+      roles: project.roles.filter((role) => role.id !== roleId),
+    }));
+  }
+
+  function removeProject(projectId: string) {
+    const nextProjects = projects.filter((project) => project.id !== projectId);
+    commitProjects(nextProjects);
+    setSelectedProjectId(nextProjects[0]?.id ?? "");
+  }
+
+  return (
+    <main className="page-shell director-page">
+      <Header />
+      <section className="section director-hero">
+        <div>
+          <p className="eyebrow">Rejissor kabineti</p>
+          <h1>Layihə obrazlarını aktyor seçimləri ilə eyni ekranda topla.</h1>
+          <p className="lead">
+            Layihə yarat, ata, ana, övlad, polis kimi obrazları qeyd et və hər obraza uyğun aktyorları vizual cast board kimi əlavə et.
+          </p>
+        </div>
+        <form className="director-create" onSubmit={createProject}>
+          <input
+            aria-label="Layihə adı"
+            onChange={(event) => setProjectName(event.target.value)}
+            placeholder="Layihə adı, məsələn: Yeni serial"
+            value={projectName}
+          />
+          <button className="button" type="submit">Layihə yarat</button>
+        </form>
+      </section>
+
+      <section className="section director-layout">
+        <aside className="director-sidebar">
+          <div className="director-sidebar-head">
+            <strong>Layihələr</strong>
+            <span>{projects.length} layihə</span>
+          </div>
+          {projects.length ? (
+            <div className="director-project-list">
+              {projects.map((project) => (
+                <button
+                  className={activeProject?.id === project.id ? "director-project active" : "director-project"}
+                  key={project.id}
+                  onClick={() => setSelectedProjectId(project.id)}
+                  type="button"
+                >
+                  <strong>{project.name}</strong>
+                  <span>{project.roles.length} obraz</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-copy">İlk layihəni yuxarıdan yarat.</p>
+          )}
+        </aside>
+
+        <div className="director-board">
+          {activeProject ? (
+            <>
+              <div className="director-board-head">
+                <div>
+                  <span>{new Date(activeProject.createdAt).toLocaleDateString("az-AZ")}</span>
+                  <h2>{activeProject.name}</h2>
+                </div>
+                <button className="button secondary" onClick={() => removeProject(activeProject.id)} type="button">
+                  Layihəni sil
+                </button>
+              </div>
+              <div className="director-role-create">
+                <input
+                  aria-label="Obraz adı"
+                  onChange={(event) => setRoleDrafts((current) => ({ ...current, [activeProject.id]: event.target.value }))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addRole(activeProject.id);
+                    }
+                  }}
+                  placeholder="Obraz adı: ata, ana, övlad, polis..."
+                  value={roleDrafts[activeProject.id] ?? ""}
+                />
+                <button className="button" onClick={() => addRole(activeProject.id)} type="button">Obraz əlavə et</button>
+              </div>
+
+              {activeProject.roles.length ? (
+                <div className="director-role-grid">
+                  {activeProject.roles.map((role) => {
+                    const assignedActors = role.actorIds
+                      .map((actorId) => publicActors.find((actor) => actor.id === actorId))
+                      .filter(Boolean) as Actor[];
+
+                    return (
+                      <article className="director-role-card" key={role.id}>
+                        <div className="director-role-head">
+                          <div>
+                            <h3>{role.name}</h3>
+                            <span>{assignedActors.length} namizəd</span>
+                          </div>
+                          <button onClick={() => removeRole(role.id)} type="button">Sil</button>
+                        </div>
+                        <div className="director-assign-row">
+                          <select
+                            aria-label={`${role.name} üçün aktyor seç`}
+                            onChange={(event) => setActorDrafts((current) => ({ ...current, [role.id]: event.target.value }))}
+                            value={actorDrafts[role.id] ?? ""}
+                          >
+                            <option value="">Aktyor seç</option>
+                            {favoriteActors.length ? (
+                              <optgroup label="Favoritlər">
+                                {favoriteActors.map((actor) => (
+                                  <option key={`fav-${actor.id}`} value={actor.id}>{actor.name} - {actor.role}</option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                            <optgroup label="Bütün baza">
+                              {otherActors.map((actor) => (
+                                <option key={actor.id} value={actor.id}>{actor.name} - {actor.role}</option>
+                              ))}
+                            </optgroup>
+                          </select>
+                          <button className="button secondary" onClick={() => assignActor(role.id)} type="button">Əlavə et</button>
+                        </div>
+                        {assignedActors.length ? (
+                          <div className="director-cast-list">
+                            {assignedActors.map((actor) => (
+                              <div className="director-cast-card" key={`${role.id}-${actor.id}`}>
+                                <a href={`/actors/${actor.slug}`}>
+                                  {actor.photo ? (
+                                    <OptimizedImage src={actor.photo} alt={actor.name} />
+                                  ) : (
+                                    <span>{actor.initials}</span>
+                                  )}
+                                </a>
+                                <div>
+                                  <strong>{actor.name}</strong>
+                                  <small>{actor.role} · {actor.city} · ★ {effectiveRating(actor).toFixed(1)}</small>
+                                </div>
+                                <button onClick={() => removeActorFromRole(role.id, actor.id)} type="button">×</button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="muted-copy">Bu obraza hələ aktyor əlavə edilməyib.</p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <h2>Obraz əlavə et</h2>
+                  <p>Layihənin obrazlarını yazdıqdan sonra hər obraz üçün aktyorları əlavə edə biləcəksən.</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="empty-state">
+              <h2>Rejissor layihəsi yaradılmayıb</h2>
+              <p>Layihə adı yaz və ilk cast board-u yarat.</p>
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
@@ -5130,6 +5467,10 @@ function App() {
         shortlist={shortlist}
       />
     );
+  }
+
+  if (path === "/director") {
+    return <DirectorCabinetPage actors={actors} shortlist={shortlist} />;
   }
 
   if (path === "/news") {
