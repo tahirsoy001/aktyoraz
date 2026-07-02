@@ -648,11 +648,7 @@ function drawDirectorProjectPdf(doc, project) {
 
   for (let index = 0; index < roles.length; index += 4) {
     const roleRow = roles.slice(index, index + 4);
-    const rowHeights = roleRow.map((role) => {
-      const actorCount = Math.max(1, Array.isArray(role.actors) ? role.actors.length : 0);
-      return Math.max(230, 74 + actorCount * 78);
-    });
-    const rowHeight = Math.min(Math.max(...rowHeights), pageHeight - 126);
+    const rowHeight = Math.min(420, pageHeight - 126);
 
     if (y + rowHeight > pageHeight - 34) {
       doc.addPage();
@@ -679,11 +675,21 @@ function drawDirectorProjectPdf(doc, project) {
         return;
       }
 
-      for (let actorIndex = 0; actorIndex < actors.length; actorIndex += 1) {
-        const actor = actors[actorIndex];
-        const itemY = y + 64 + actorIndex * 78;
+      const visibleActors = actors.slice(0, 4);
+      const actorColumns = visibleActors.length > 1 ? 2 : 1;
+      const actorGap = 8;
+      const posterWidth = (cardWidth - 24 - actorGap * (actorColumns - 1)) / actorColumns;
+      const posterHeight = visibleActors.length <= 1 ? 288 : visibleActors.length <= 2 ? 250 : 154;
+      const photoHeight = visibleActors.length <= 1 ? 226 : visibleActors.length <= 2 ? 188 : 106;
 
-        if (itemY + 62 > y + rowHeight - 10) {
+      for (let actorIndex = 0; actorIndex < visibleActors.length; actorIndex += 1) {
+        const actor = visibleActors[actorIndex];
+        const actorColumn = actorIndex % actorColumns;
+        const actorRow = Math.floor(actorIndex / actorColumns);
+        const itemX = x + 12 + actorColumn * (posterWidth + actorGap);
+        const itemY = y + 64 + actorRow * (posterHeight + actorGap);
+
+        if (itemY + posterHeight > y + rowHeight - 10) {
           doc.fillColor("#6b6f76").font(boldFont).fontSize(9).text(`+${actors.length - actorIndex} namizəd`, x + 12, y + rowHeight - 28, {
             width: cardWidth - 24,
           });
@@ -691,29 +697,36 @@ function drawDirectorProjectPdf(doc, project) {
         }
 
         const photoPath = getPhotoPath(actor.photo);
-        doc.roundedRect(x + 12, itemY, cardWidth - 24, 62, 8).fill("#fbfbf8");
+        doc.roundedRect(itemX, itemY, posterWidth, posterHeight, 8).fillAndStroke("#fbfbf8", "#ede9f5");
+        doc.roundedRect(itemX, itemY, posterWidth, photoHeight, 8).fill("#111827");
 
         if (photoPath && fs.existsSync(photoPath)) {
-          doc.image(photoPath, x + 18, itemY + 6, { fit: [42, 50], align: "center" });
+          doc.image(photoPath, itemX, itemY, { fit: [posterWidth, photoHeight], align: "center", valign: "center" });
         } else {
-          doc.roundedRect(x + 18, itemY + 6, 42, 50, 6).fill("#7a2cdf");
-          doc.fillColor("#ffffff").font(boldFont).fontSize(11).text(actor.initials || "AA", x + 18, itemY + 24, {
+          doc.roundedRect(itemX, itemY, posterWidth, photoHeight, 8).fill("#7a2cdf");
+          doc.fillColor("#ffffff").font(boldFont).fontSize(visibleActors.length <= 1 ? 24 : 16).text(actor.initials || "AA", itemX, itemY + photoHeight / 2 - 10, {
             align: "center",
-            width: 42,
+            width: posterWidth,
           });
         }
 
-        doc.fillColor("#111827").font(boldFont).fontSize(10).text(actor.name || "Adsız aktyor", x + 68, itemY + 10, {
-          width: cardWidth - 88,
+        doc.fillColor("#111827").font(boldFont).fontSize(visibleActors.length <= 1 ? 11 : 9).text(actor.name || "Adsız aktyor", itemX + 8, itemY + photoHeight + 10, {
+          width: posterWidth - 16,
           lineBreak: false,
         });
-        doc.fillColor("#6b6f76").font(regularFont).fontSize(8).text(actorMeta(actor), x + 68, itemY + 29, {
-          width: cardWidth - 88,
+        doc.fillColor("#6b6f76").font(regularFont).fontSize(visibleActors.length <= 1 ? 8 : 7).text(actorMeta(actor), itemX + 8, itemY + photoHeight + 27, {
+          width: posterWidth - 16,
           lineBreak: false,
         });
-        doc.fillColor("#7a2cdf").font(boldFont).fontSize(7).text(actor.id || "", x + 68, itemY + 45, {
-          width: cardWidth - 88,
+        doc.fillColor("#7a2cdf").font(boldFont).fontSize(7).text(actor.id || "", itemX + 8, itemY + photoHeight + 43, {
+          width: posterWidth - 16,
           lineBreak: false,
+        });
+      }
+
+      if (actors.length > visibleActors.length) {
+        doc.fillColor("#6b6f76").font(boldFont).fontSize(9).text(`+${actors.length - visibleActors.length} namizəd`, x + 12, y + rowHeight - 28, {
+          width: cardWidth - 24,
         });
       }
     });
