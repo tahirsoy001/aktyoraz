@@ -1601,6 +1601,8 @@ h1 {
   cursor: grab;
   display: grid;
   gap: 14px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 560px;
   min-width: 0;
   padding: 16px;
 }
@@ -1653,7 +1655,13 @@ h1 {
 }
 
 .director-cast-list {
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  align-content: start;
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  max-height: 455px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .director-cast-card a,
@@ -1684,8 +1692,8 @@ h1 {
 .director-cast-card > div {
   display: grid;
   gap: 4px;
-  min-height: 84px;
-  padding: 12px;
+  min-height: 72px;
+  padding: 10px;
 }
 
 .director-cast-card > button {
@@ -1697,6 +1705,8 @@ h1 {
 .director-cast-card strong,
 .director-cast-card small {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .director-cast-card small {
@@ -1704,6 +1714,7 @@ h1 {
   font-size: 12px;
   font-weight: 800;
   margin-top: 4px;
+  white-space: nowrap;
 }
 
 .profile-detail-grid,
@@ -3366,7 +3377,8 @@ h1 {
   }
 
   .director-cast-list {
-    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    max-height: 430px;
   }
 
   .admin-console {
@@ -3713,7 +3725,6 @@ h1 {
   .director-create,
   .director-role-create,
   .director-assign-row,
-  .director-cast-list,
   .director-cast-card {
     grid-template-columns: 1fr;
   }
