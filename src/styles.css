@@ -1445,6 +1445,21 @@ h1 {
   color: #166534;
 }
 
+.share-state {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 10px 0 0;
+}
+
+.share-button {
+  gap: 8px;
+}
+
+.share-button svg {
+  flex: 0 0 auto;
+}
+
 .profile-detail-grid,
 .mini-meta-grid {
   display: grid;

@@ -638,14 +638,9 @@ function getCardVerificationState(actor: Actor) {
 }
 
 function getTopActors(actorList: Actor[]) {
-  const rankedActors = sortByRating(actorList);
-  const manualActors = rankedActors
-    .filter((actor) => actor.featuredOrder && actor.featuredOrder >= 1 && actor.featuredOrder <= 5)
+  return actorList
+    .filter((actor) => actor.featuredOrder && actor.featuredOrder >= 1)
     .sort((first, second) => (first.featuredOrder ?? 99) - (second.featuredOrder ?? 99));
-  const manualIds = new Set(manualActors.map((actor) => actor.id));
-  const fallbackActors = rankedActors.filter((actor) => !manualIds.has(actor.id));
-
-  return [...manualActors, ...fallbackActors].slice(0, 5);
 }
 
 function randomizeActorPool(actorList: Actor[]) {
@@ -653,24 +648,15 @@ function randomizeActorPool(actorList: Actor[]) {
 }
 
 function getHomeCollageActors(actorList: Actor[], randomize = false) {
-  const rankedActors = sortByRating(actorList);
-  const manualActors = rankedActors
-    .filter((actor) => actor.homeOrder && actor.homeOrder >= 1 && actor.homeOrder <= 6)
+  const manualActors = actorList
+    .filter((actor) => actor.homeOrder && actor.homeOrder >= 1)
     .sort((first, second) => (first.homeOrder ?? 99) - (second.homeOrder ?? 99));
-  const manualIds = new Set(manualActors.map((actor) => actor.id));
-  const fallbackActors = rankedActors.filter((actor) => !manualIds.has(actor.id));
 
   if (!randomize) {
-    return [...manualActors, ...fallbackActors].slice(0, 6);
+    return manualActors.slice(0, 6);
   }
 
-  const randomManualActors = randomizeActorPool(manualActors);
-
-  if (randomManualActors.length >= 6) {
-    return randomManualActors.slice(0, 6);
-  }
-
-  return [...randomManualActors, ...randomizeActorPool(fallbackActors)].slice(0, 6);
+  return randomizeActorPool(manualActors).slice(0, 6);
 }
 
 function actorMatchesQuery(actor: Actor, query: string) {
@@ -1050,10 +1036,10 @@ function formToActor(form: ActorForm, existingActors: Actor[], currentId?: strin
     adminBoost: Math.min(1, Math.max(-1, Number(form.adminBoost) || 0)),
     profileKind: form.profileKind,
     featuredOrder: form.featuredOrder
-      ? Math.min(5, Math.max(1, Math.round(Number(form.featuredOrder) || 0)))
+      ? Math.min(99, Math.max(1, Math.round(Number(form.featuredOrder) || 0)))
       : undefined,
     homeOrder: form.homeOrder
-      ? Math.min(6, Math.max(1, Math.round(Number(form.homeOrder) || 0)))
+      ? Math.min(99, Math.max(1, Math.round(Number(form.homeOrder) || 0)))
       : undefined,
     cardStatus: form.cardStatus,
     cardIssuedAt: form.cardIssuedAt,
@@ -1565,7 +1551,7 @@ function ActorsPage({
     () => new Map(publicActors.map((actor) => [actor.id, Math.random()])),
     [publicActors.map((actor) => actor.id).join("|")],
   );
-  const topActors = shuffleActors(getTopActors(publicActors), browseRandomRanks);
+  const topActors = shuffleActors(getTopActors(publicActors), browseRandomRanks).slice(0, 5);
   const favoriteActors = publicActors.filter((actor) => shortlist.includes(actor.id));
   const verifiedActors = publicActors.filter((actor) => actor.status === "verified");
   const customCategoryRows = getUniqueListValues(publicActors, "browseCategories").map((category) => ({
@@ -2784,9 +2770,14 @@ function ActorProfilePage({
   const ownVote = votes[actor.id];
   const contactLinks = getContactLinks(actor.contact);
   const [profileViewCount, setProfileViewCount] = useState(actor.viewCount ?? 0);
+  const [shareMessage, setShareMessage] = useState("");
+  const profileUrl = `${SITE_URL}/actors/${actor.slug}`;
+  const shareTitle = `${actor.name} | Aktyor.az`;
+  const shareText = `${actor.name} - ${actor.role} profili, Azərbaycan Aktyor və Aktrisa Bazası`;
 
   useEffect(() => {
     setProfileViewCount(actor.viewCount ?? 0);
+    setShareMessage("");
 
     recordActorProfileView(actor.id)
       .then((result) => {
@@ -2794,6 +2785,27 @@ function ActorProfilePage({
       })
       .catch(() => undefined);
   }, [actor.id, actor.viewCount]);
+
+  async function shareActorProfile() {
+    const shareData = {
+      text: shareText,
+      title: shareTitle,
+      url: profileUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareMessage("Profil paylaşım pəncərəsi açıldı.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(profileUrl);
+      setShareMessage("Profil linki kopyalandı.");
+    } catch {
+      setShareMessage("Paylaşım alınmadı. Linki brauzer ünvanından kopyalaya bilərsiniz.");
+    }
+  }
 
   return (
     <main className="page-shell">
@@ -2885,6 +2897,12 @@ function ActorProfilePage({
             <a className="button secondary" href={getActorCardPdfUrl(actor.id)}>
               PDF kart
             </a>
+            <button className="button secondary share-button" onClick={shareActorProfile} type="button">
+              <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+                <path d="M18 8a3 3 0 1 0-2.8-4.05L8.9 7.1a3 3 0 1 0 0 1.8l6.3 3.15A3 3 0 1 0 16 10.6L9.7 7.45 16 4.3A3 3 0 0 0 18 8Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+              </svg>
+              <span>Paylaş</span>
+            </button>
             {contactLinks ? (
               <>
                 <a className="contact-chip" href={contactLinks.tel}>
@@ -2898,6 +2916,7 @@ function ActorProfilePage({
               actor.contact && <span className="contact-chip">{actor.contact}</span>
             )}
           </div>
+          {shareMessage && <p className="share-state">{shareMessage}</p>}
           <div className="badge-row">
             <span className="badge rating-badge">
               ★ {effectiveRating(actor).toFixed(1)} · {actor.ratingCount} səs
@@ -3256,31 +3275,8 @@ function AdminPage({
 
     const nextActor = formToActor(form, actors, editingId ?? undefined);
     const nextActors = editingId
-      ? actors.map((actor) => {
-          if (actor.id === editingId) {
-            return nextActor;
-          }
-
-          if (nextActor.featuredOrder && actor.featuredOrder === nextActor.featuredOrder) {
-            return { ...actor, featuredOrder: undefined };
-          }
-
-          if (nextActor.homeOrder && actor.homeOrder === nextActor.homeOrder) {
-            return { ...actor, homeOrder: undefined };
-          }
-
-          return actor;
-        })
-      : [
-          nextActor,
-          ...actors.map((actor) =>
-            nextActor.featuredOrder && actor.featuredOrder === nextActor.featuredOrder
-              ? { ...actor, featuredOrder: undefined }
-              : nextActor.homeOrder && actor.homeOrder === nextActor.homeOrder
-                ? { ...actor, homeOrder: undefined }
-              : actor,
-          ),
-        ];
+      ? actors.map((actor) => (actor.id === editingId ? nextActor : actor))
+      : [nextActor, ...actors];
 
     try {
       await onActorsChange(nextActors);
@@ -3627,8 +3623,8 @@ function AdminPage({
               </div>
             </div>
             <p>
-              Top 5 üçün “Top 5 sırası”, ana səhifə kolajı üçün “Ana səhifə kolaj sırası” yaz.
-              Boş yerlər reytinqə görə avtomatik tamamlanır. Yeni Baza slide üçün profilə “Baza slide kateqoriyaları” əlavə et.
+              Top 5 və kolaj yalnız adminin seçdiyi profillərdən formalaşır. Bir neçə profilə seçim nömrəsi ver:
+              səhifə yenilənəndə onlar öz aralarında random göstərilir. Yeni Baza slide üçün profilə “Baza slide kateqoriyaları” əlavə et.
             </p>
           </div>
           <div className="admin-browse-panel">
@@ -3812,23 +3808,23 @@ function AdminPage({
               />
             </label>
             <label>
-              Top 5 sırası
+              Top 5 seçimi
               <input
-                max="5"
+                max="99"
                 min="1"
                 onChange={(event) => updateForm("featuredOrder", event.target.value)}
-                placeholder="Boş saxla və ya 1-5"
+                placeholder="Boş saxla və ya 1-99"
                 type="number"
                 value={form.featuredOrder}
               />
             </label>
             <label>
-              Ana səhifə kolaj sırası
+              Ana səhifə kolaj seçimi
               <input
-                max="6"
+                max="99"
                 min="1"
                 onChange={(event) => updateForm("homeOrder", event.target.value)}
-                placeholder="Boş saxla və ya 1-6"
+                placeholder="Boş saxla və ya 1-99"
                 type="number"
                 value={form.homeOrder}
               />

@@ -451,6 +451,21 @@ function getCardVerificationState(actor) {
   };
 }
 
+const brandLogoPath =
+  "m1079.2 331v420.5q0 107 12.5 180 14.2 71.3 30.3 115.8 19.6 53.5 42.7 83.8l-158.6 64.2q-23.1-23.2-42.7-55.3-16.1-28.5-30.3-67.7-14.3-41-17.9-96.2-30.2 106.9-98 162.1-65.9 53.5-179.9 53.5-83.8 0-146.2-30.3-60.6-32.1-101.5-89.1-41-58.8-60.6-140.8-19.6-82-19.6-181.7 0-101.6 30.3-187.2 32-87.3 87.3-149.6 57-62.4 135.4-98.1 78.4-35.6 172.9-35.6 53.4 0 110.5 8.9 58.8 7.1 108.7 16.1 49.8 8.9 83.7 17.8 35.6 7.1 41 8.9zm-408.1 718.1q44.6 0 82-30.3 37.4-30.3 64.1-78.4 28.6-49.9 42.8-112.2 16-64.2 16-130.1v-256.6q-17.8-5.4-53.4-12.5-35.7-7.1-64.2-7.1-67.7 0-112.2 23.1-42.8 23.2-69.5 64.2-26.8 41-37.5 98-10.6 57-10.6 124.7 0 62.4 3.5 119.4 3.6 57.1 17.8 101.6 16.1 44.6 44.6 71.3 28.5 24.9 76.6 24.9z";
+
+function drawPdfBrandMark(doc, x, y, size) {
+  const scale = size / 1476;
+
+  doc.save();
+  doc.roundedRect(x, y, size, size, 9).fill("#7a2cdf");
+  doc.roundedRect(x + 1.5, y + 1.5, size - 3, size - 3, 8).fill("#6024b5");
+  doc.roundedRect(x + 4, y + 4, size - 8, size - 8, 7).fill("#7a2cdf");
+  doc.translate(x, y).scale(scale);
+  doc.path(brandLogoPath).fill("#ffffff");
+  doc.restore();
+}
+
 function drawPdfCard(doc, actor, qrBuffer) {
   const pageWidth = doc.page.width;
   const margin = 32;
@@ -471,20 +486,22 @@ function drawPdfCard(doc, actor, qrBuffer) {
   }
 
   doc.roundedRect(cardX, cardY, cardWidth, 520, 14).fillAndStroke("#ffffff", "#deded6");
-  doc.rect(cardX, cardY, cardWidth, 86).fill("#111827");
-  doc.fillColor("#ffffff").fontSize(14).font(boldFont).text("Azərbaycan Aktyor və Aktrisa Bazası", cardX + 22, cardY + 23, {
-    width: cardWidth - 44,
+  doc.rect(cardX, cardY, cardWidth, 92).fill("#6024b5");
+  doc.rect(cardX, cardY, cardWidth, 92).fillOpacity(0.18).fill("#7a2cdf").fillOpacity(1);
+  drawPdfBrandMark(doc, cardX + 20, cardY + 22, 46);
+  doc.fillColor("#ffffff").fontSize(12).font(boldFont).text("Azərbaycan Aktyor və Aktrisa Bazası", cardX + 82, cardY + 27, {
+    width: cardWidth - 104,
     lineBreak: false,
   });
   doc
     .fontSize(9)
     .font(regularFont)
-    .text("Rəqəmsal aktyor təsdiq kartı", cardX + 22, cardY + 52);
+    .text("Rəqəmsal aktyor təsdiq kartı", cardX + 82, cardY + 52);
 
   if (photoPath && fs.existsSync(photoPath)) {
     doc.image(photoPath, cardX + 22, cardY + 112, { fit: [118, 150], align: "center" });
   } else {
-    doc.roundedRect(cardX + 22, cardY + 112, 118, 150, 10).fill("#7f1d1d");
+    doc.roundedRect(cardX + 22, cardY + 112, 118, 150, 10).fill("#6024b5");
     doc.fillColor("#ffffff").fontSize(34).font(boldFont).text(actor.initials, cardX + 22, cardY + 166, {
       align: "center",
       width: 118,
@@ -498,7 +515,7 @@ function drawPdfCard(doc, actor, qrBuffer) {
     width: profileWidth,
   });
   const nameBottom = Math.max(cardY + 144, doc.y + 5);
-  doc.fillColor("#b91c1c").font(boldFont).fontSize(13).text(actor.role, profileX, nameBottom, {
+  doc.fillColor("#7a2cdf").font(boldFont).fontSize(13).text(actor.role, profileX, nameBottom, {
     width: profileWidth,
   });
   doc.fillColor("#4b5563").font(regularFont).fontSize(10).text(`${actor.city} · ${actor.ageRange} · ${actor.height}`, profileX, nameBottom + 23, {
@@ -520,7 +537,7 @@ function drawPdfCard(doc, actor, qrBuffer) {
   const infoX = cardX + 22;
   const infoY = cardY + 290;
   const infoWidth = cardWidth - 44;
-  doc.roundedRect(infoX, infoY, infoWidth, 106, 10).fillAndStroke("#f7f7f3", "#deded6");
+  doc.roundedRect(infoX, infoY, infoWidth, 106, 10).fillAndStroke("#fbf8ff", "#d9c8ff");
   doc.fillColor("#6b6f76").font(regularFont).fontSize(8).text("Aktyor ID", infoX + 18, infoY + 18, {
     width: 210,
   });
@@ -530,7 +547,7 @@ function drawPdfCard(doc, actor, qrBuffer) {
   doc.fillColor("#6b6f76").font(regularFont).fontSize(8).text("Reytinq", infoX + 270, infoY + 18, {
     width: 80,
   });
-  doc.fillColor("#9a3412").font(boldFont).fontSize(16).text(Math.min(5, Math.max(0, actor.rating + actor.adminBoost)).toFixed(1), infoX + 270, infoY + 35, {
+  doc.fillColor("#7a2cdf").font(boldFont).fontSize(16).text(Math.min(5, Math.max(0, actor.rating + actor.adminBoost)).toFixed(1), infoX + 270, infoY + 35, {
     width: 80,
   });
   doc.fillColor("#4b5563").font(regularFont).fontSize(9).text(
@@ -544,6 +561,7 @@ function drawPdfCard(doc, actor, qrBuffer) {
 
   doc.image(qrBuffer, cardX + 22, cardY + 420, { fit: [96, 96] });
   doc.fillColor("#111827").font(boldFont).fontSize(12).text("QR ilə yoxla", cardX + 136, cardY + 432);
+  doc.roundedRect(cardX + 136, cardY + 450, 52, 3, 1.5).fill("#7a2cdf");
   doc.fillColor("#4b5563").font(regularFont).fontSize(9).text(getVerificationUrl(actor), cardX + 136, cardY + 454, {
     width: cardWidth - 166,
   });
