@@ -15,10 +15,12 @@ import {
   createAuditLog,
   createAiCastingFeedback,
   createApplication,
+  createEducationApplication,
   consumeAiUsageSlot,
   db,
   deleteActor,
   deleteApplication,
+  deleteEducationItem,
   deleteNewsPost,
   getAdminByEmail,
   getAdminById,
@@ -30,11 +32,16 @@ import {
   getActorEmbedding,
   getActors,
   getEmbeddingStats,
+  getEducationApplications,
+  getEducationItems,
   getNewsPostBySlug,
   getNewsPosts,
   getSiteViewStats,
+  recordActorShortlist,
+  recordAiRecommendations,
   recordUniqueView,
   resetSeed,
+  saveEducationItem,
   saveNewsPost,
   saveActor,
   saveActorEmbedding,
@@ -1713,6 +1720,7 @@ app.post("/api/ai/casting-search", async (request, response, next) => {
     const budget = openAiCastingBudget(request);
     const result = await aiCastingSearch(prompt, actors, limit, { useOpenAi: budget.allowed });
     const actorsById = new Map(actors.map((actor) => [actor.id, actor]));
+    recordAiRecommendations(result.results.map((item) => item.actorId));
 
     response.json({
       analysis: result.analysis,
@@ -1738,6 +1746,39 @@ app.post("/api/ai/casting-search", async (request, response, next) => {
         score: item.score,
       })),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/education", (_request, response) => {
+  response.json({ items: getEducationItems() });
+});
+
+app.post("/api/education/applications", (request, response, next) => {
+  try {
+    const application = createEducationApplication(request.body?.application ?? {});
+    response.status(201).json({ application });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/actors/:id/shortlist", (request, response, next) => {
+  try {
+    const actor = getActorById(request.params.id);
+
+    if (!actor) {
+      response.status(404).json({ error: "actor not found" });
+      return;
+    }
+
+    const result = recordActorShortlist({
+      actorId: actor.id,
+      visitorHash: getVisitorHash(request),
+    });
+
+    response.json({ counted: result.counted, shortlistCount: result.count });
   } catch (error) {
     next(error);
   }
@@ -1870,6 +1911,62 @@ app.get("/api/admin/me", requireAdmin, (request, response) => {
 
 app.get("/api/admin/applications", requireAdmin, (_request, response) => {
   response.json({ applications: getApplications() });
+});
+
+app.get("/api/admin/education", requireAdmin, (_request, response) => {
+  response.json({
+    applications: getEducationApplications(),
+    items: getEducationItems({ includeDrafts: true }),
+  });
+});
+
+app.post("/api/admin/education", requireAdmin, (request, response, next) => {
+  try {
+    const item = saveEducationItem(request.body?.item ?? {});
+    createAuditLog({
+      action: "education_create",
+      adminEmail: request.admin.email,
+      details: { title: item.title },
+      entityId: String(item.id),
+      entityType: "education",
+    });
+    response.status(201).json({ item });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/education/:id", requireAdmin, (request, response, next) => {
+  try {
+    const item = saveEducationItem({ ...(request.body?.item ?? {}), id: Number(request.params.id) });
+    createAuditLog({
+      action: "education_update",
+      adminEmail: request.admin.email,
+      details: { title: item.title },
+      entityId: String(item.id),
+      entityType: "education",
+    });
+    response.json({ item });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/education/:id", requireAdmin, (request, response, next) => {
+  try {
+    const id = Number(request.params.id);
+    deleteEducationItem(id);
+    createAuditLog({
+      action: "education_delete",
+      adminEmail: request.admin.email,
+      details: {},
+      entityId: String(id),
+      entityType: "education",
+    });
+    response.json({ deleted: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/api/admin/audit-logs", requireAdmin, (_request, response) => {

@@ -53,6 +53,8 @@ export type Actor = {
   paymentProvider?: "manual" | "online";
   paymentReference?: string;
   viewCount?: number;
+  aiRecommendationCount?: number;
+  shortlistCount?: number;
   createdAt?: string;
   updatedAt?: string;
 };

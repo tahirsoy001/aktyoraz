@@ -11,17 +11,24 @@ import {
   createAiCastingFeedback,
   castingSearch,
   createActorApplication,
+  createEducationApplication,
   deleteAdminMedia,
+  deleteAdminEducationItem,
   deleteApplication,
   deleteAdminNewsPost,
+  EducationApplication,
+  EducationItem,
+  EducationItemInput,
   exportDirectorProjectPdf,
   fetchAiCastingFeedback,
   fetchActorsFromApi,
   fetchAuditLogs,
+  fetchAdminEducation,
   fetchAdminMedia,
   fetchAdminNews,
   fetchAiIndexStatus,
   fetchApplications,
+  fetchEducationItems,
   fetchNewsFromApi,
   fetchSiteViewCount,
   getActorCardPdfUrl,
@@ -33,12 +40,14 @@ import {
   NewsPostInput,
   rateActorInApi,
   recordActorProfileView,
+  recordActorShortlist,
   recordNewsPostView,
   recordSiteView,
   reindexAiProfiles,
   replaceActorsInApi,
   resetSeedInApi,
   saveAdminNewsPost,
+  saveAdminEducationItem,
   SiteViewStats,
   updateApplicationStatus,
   uploadActorPhoto,
@@ -54,7 +63,7 @@ const DIRECTOR_PROJECTS_KEY = "aktyor-az-director-projects";
 const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
 const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
-const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "media", "applications", "payments", "audit"] as const;
+const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "education", "media", "applications", "payments", "audit"] as const;
 const EMPTY_SITE_VIEW_STATS: SiteViewStats = {
   daily: 0,
   monthly: 0,
@@ -305,6 +314,20 @@ function getRouteSeo(path: string, actors: Actor[], newsPosts: NewsPost[] = []):
     };
   }
 
+  if (path === "/education") {
+    return {
+      canonical: `${SITE_URL}/education`,
+      description: "Aktyor.az təhsil bölməsi kino, serial, səhnə və kamera təcrübəsi üçün təlim proqramları, film posterləri və qeydiyyat anketlərini təqdim edir.",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "Aktyor.az təhsil bölməsi",
+        url: `${SITE_URL}/education`,
+      },
+      title: "Təhsil və aktyor hazırlığı | Aktyor.az",
+    };
+  }
+
   if (path === "/about") {
     return {
       canonical: `${SITE_URL}/about`,
@@ -541,6 +564,29 @@ const emptyNewsForm: NewsForm = {
   seoDescription: "",
 };
 
+type EducationForm = {
+  id?: number;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string;
+  description: string;
+  posterImage: string;
+  status: EducationItem["status"];
+  sortOrder: string;
+};
+
+const emptyEducationForm: EducationForm = {
+  title: "",
+  slug: "",
+  category: "Kino təhsili",
+  excerpt: "",
+  description: "",
+  posterImage: "",
+  status: "draft",
+  sortOrder: "",
+};
+
 function readActors() {
   try {
     const savedActors = window.localStorage.getItem(STORAGE_KEY);
@@ -604,6 +650,8 @@ function normalizeActor(actor: Partial<Actor>): Actor {
     paymentProvider: actor.paymentProvider ?? fallback?.paymentProvider ?? "manual",
     paymentReference: actor.paymentReference ?? fallback?.paymentReference ?? "",
     viewCount: actor.viewCount ?? fallback?.viewCount ?? 0,
+    aiRecommendationCount: actor.aiRecommendationCount ?? fallback?.aiRecommendationCount ?? 0,
+    shortlistCount: actor.shortlistCount ?? fallback?.shortlistCount ?? 0,
   };
 }
 
@@ -1220,6 +1268,9 @@ function Header() {
         </a>
         <a className={isActive("/director") ? "nav-link active" : "nav-link"} href="/director">
           Rejissor kabineti
+        </a>
+        <a className={isActive("/education") ? "nav-link active" : "nav-link"} href="/education">
+          Təhsil
         </a>
         <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
           Bazaya qoşul
@@ -2469,6 +2520,135 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
   );
 }
 
+function EducationPage({ items }: { items: EducationItem[] }) {
+  const [selectedItemId, setSelectedItemId] = useState<number | "">("");
+  const [form, setForm] = useState({ name: "", note: "", phone: "" });
+  const [message, setMessage] = useState("");
+  const categories = Array.from(new Set(items.map((item) => item.category || "Təhsil")));
+  const selectedItem = items.find((item) => item.id === selectedItemId);
+
+  async function submitEducationApplication(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("Müraciət göndərilir...");
+
+    try {
+      await createEducationApplication({
+        courseTitle: selectedItem?.title,
+        itemId: selectedItem?.id,
+        name: form.name,
+        note: form.note,
+        phone: form.phone,
+      });
+      setForm({ name: "", note: "", phone: "" });
+      setSelectedItemId("");
+      setMessage("Müraciət qəbul olundu. Komandamız sizinlə əlaqə saxlayacaq.");
+    } catch {
+      setMessage("Müraciət göndərilmədi. Zəhmət olmasa bir az sonra yenidən yoxlayın.");
+    }
+  }
+
+  return (
+    <main className="page-shell">
+      <Header />
+      <section className="education-hero">
+        <p className="eyebrow">Aktyor.az Təhsil</p>
+        <h1>Kamera, səhnə və kastinq hazırlığı üçün təhsil bölməsi.</h1>
+        <p className="lead">
+          Təlim proqramları, çəkiliş nümunələri və qeydiyyat anketləri bir yerdə toplanır. Burada
+          gələcək aktyor profillərinin peşəkar hazırlıq mərhələsi ayrıca sənədləşdirilir.
+        </p>
+        <a className="button" href="#education-apply">Qeydiyyatdan keç</a>
+      </section>
+
+      <section className="section education-catalog">
+        {categories.length ? (
+          categories.map((category) => {
+            const categoryItems = items.filter((item) => item.category === category);
+
+            return (
+              <div className="education-row" key={category}>
+                <div className="section-heading-row">
+                  <h2>{category}</h2>
+                  <span>{categoryItems.length} proqram</span>
+                </div>
+                <div className="education-poster-track">
+                  {categoryItems.map((item) => (
+                    <article className="education-poster-card" key={item.id}>
+                      <div className="education-poster-frame">
+                        {item.posterImage ? (
+                          <OptimizedImage alt={item.title} src={item.posterImage} />
+                        ) : (
+                          <div className="poster-placeholder">{item.title.slice(0, 2).toLocaleUpperCase("az")}</div>
+                        )}
+                      </div>
+                      <div>
+                        <h3>{item.title}</h3>
+                        <p>{item.excerpt || item.description}</p>
+                        <button
+                          className="button secondary"
+                          onClick={() => setSelectedItemId(item.id)}
+                          type="button"
+                        >
+                          Seç
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="empty-state">
+            <h2>Təhsil proqramları hazırlanır</h2>
+            <p>Admin paneldən poster və proqram əlavə ediləndə burada Netflix stilində görünəcək.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="section education-apply" id="education-apply">
+        <div>
+          <p className="eyebrow">Təhsil üçün qeydiyyat</p>
+          <h2>Anket</h2>
+          <p className="lead">
+            Müraciət edən şəxsin əlaqə məlumatları admin panelə düşür və təhsil komandası tərəfindən yoxlanılır.
+          </p>
+        </div>
+        <form className="apply-form compact" onSubmit={submitEducationApplication}>
+          <label>
+            Proqram
+            <select
+              onChange={(event) => setSelectedItemId(event.target.value ? Number(event.target.value) : "")}
+              value={selectedItemId}
+            >
+              <option value="">Ümumi müraciət</option>
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Ad soyad
+            <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+          </label>
+          <label>
+            Telefon
+            <input required value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+          </label>
+          <label>
+            Qeyd
+            <textarea rows={4} value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+          </label>
+          <button className="button" type="submit">Müraciət et</button>
+          {message && <p className="share-state">{message}</p>}
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function AboutPage() {
   return (
     <main className="page-shell">
@@ -3409,6 +3589,43 @@ function ActorProfilePage({
             )}
           </div>
           {shareMessage && <p className="share-state">{shareMessage}</p>}
+          <div className="casting-history-panel" aria-label="Casting history">
+            <div>
+              <strong>{actor.aiRecommendationCount ?? 0}</strong>
+              <span>AI təklifi</span>
+            </div>
+            <div>
+              <strong>{profileViewCount}</strong>
+              <span>profil baxışı</span>
+            </div>
+            <div>
+              <strong>{actor.shortlistCount ?? 0}</strong>
+              <span>shortlist</span>
+            </div>
+          </div>
+          <section className="profile-bio-panel" aria-label="Peşəkar bioqrafiya">
+            <div className="section-heading-row">
+              <h2>Peşəkar bioqrafiya</h2>
+              <span>{actor.status === "verified" ? "Təsdiqlənmiş məlumat" : "Yoxlanışdadır"}</span>
+            </div>
+            <p>
+              {actor.summary || "Bu profil kastinq, portfolio və rəqəmsal təsdiq üçün hazırlanıb."}
+            </p>
+            <div className="profile-source-grid">
+              <div>
+                <strong>Profil ID</strong>
+                <span>{actor.id}</span>
+              </div>
+              <div>
+                <strong>Kateqoriya</strong>
+                <span>{actor.role}</span>
+              </div>
+              <div>
+                <strong>Yenilənmə</strong>
+                <span>{actor.updatedAt ? new Date(actor.updatedAt).toLocaleDateString("az-AZ") : "Davamlı yenilənir"}</span>
+              </div>
+            </div>
+          </section>
           <div className="badge-row">
             <span className="badge rating-badge">
               ★ {effectiveRating(actor).toFixed(1)} · {actor.ratingCount} səs
@@ -3596,12 +3813,16 @@ function AdminPage({
   aiFeedback,
   aiIndexStatus,
   applications,
+  educationApplications,
+  educationItems,
   newsPosts,
   onApplicationDelete,
   onApplicationStatusChange,
   onActorsChange,
   onDeleteNewsPost,
+  onDeleteEducationItem,
   onSaveNewsPost,
+  onSaveEducationItem,
   onResetDemoData,
   session,
   onLogout,
@@ -3611,12 +3832,16 @@ function AdminPage({
   aiFeedback: AiCastingFeedback[];
   aiIndexStatus: AiIndexStatus | null;
   applications: ActorApplication[];
+  educationApplications: EducationApplication[];
+  educationItems: EducationItem[];
   newsPosts: NewsPost[];
   onApplicationDelete: (id: number) => Promise<void>;
   onApplicationStatusChange: (id: number, status: ActorApplication["status"]) => Promise<void>;
   onActorsChange: (actors: Actor[]) => Promise<void>;
   onDeleteNewsPost: (id: number) => Promise<void>;
+  onDeleteEducationItem: (id: number) => Promise<void>;
   onSaveNewsPost: (post: NewsPostInput) => Promise<void>;
+  onSaveEducationItem: (item: EducationItemInput) => Promise<void>;
   onResetDemoData: () => Promise<void>;
   session: AdminSession;
   onLogout: () => void;
@@ -3632,6 +3857,8 @@ function AdminPage({
   const [adminActorPage, setAdminActorPage] = useState(1);
   const [newsForm, setNewsForm] = useState<NewsForm>(emptyNewsForm);
   const [newsMessage, setNewsMessage] = useState("");
+  const [educationForm, setEducationForm] = useState<EducationForm>(emptyEducationForm);
+  const [educationMessage, setEducationMessage] = useState("");
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [mediaMessage, setMediaMessage] = useState("");
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
@@ -3673,6 +3900,7 @@ function AdminPage({
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
     { id: "news", label: "Xəbərlər", meta: `${newsPosts.length} xəbər` },
+    { id: "education", label: "Təhsil", meta: `${educationItems.length} proqram` },
     { id: "media", label: "Media", meta: `${mediaFiles.length} fayl` },
     { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
     { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd` },
@@ -3755,6 +3983,77 @@ function AdminPage({
       resetNewsForm();
     }
     setNewsMessage("Xəbər silindi.");
+  }
+
+  function updateEducationForm<T extends keyof EducationForm>(name: T, value: EducationForm[T]) {
+    setEducationForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "title" && !current.slug ? { slug: slugify(String(value)) } : {}),
+    }));
+  }
+
+  function resetEducationForm() {
+    setEducationForm(emptyEducationForm);
+    setEducationMessage("");
+  }
+
+  function educationToForm(item: EducationItem): EducationForm {
+    return {
+      id: item.id,
+      title: item.title,
+      slug: item.slug,
+      category: item.category,
+      excerpt: item.excerpt,
+      description: item.description,
+      posterImage: item.posterImage ?? "",
+      status: item.status,
+      sortOrder: item.sortOrder ? String(item.sortOrder) : "",
+    };
+  }
+
+  function formToEducationItem(formValue: EducationForm): EducationItemInput {
+    return {
+      id: formValue.id,
+      title: formValue.title.trim(),
+      slug: formValue.slug.trim() || slugify(formValue.title),
+      category: formValue.category.trim() || "Təhsil",
+      excerpt: formValue.excerpt.trim(),
+      description: formValue.description.trim(),
+      posterImage: formValue.posterImage.trim() || undefined,
+      status: formValue.status,
+      sortOrder: formValue.sortOrder ? Number(formValue.sortOrder) : undefined,
+    };
+  }
+
+  async function submitEducation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setEducationMessage("Təhsil proqramı saxlanılır...");
+
+    try {
+      await onSaveEducationItem(formToEducationItem(educationForm));
+      resetEducationForm();
+      setEducationMessage("Təhsil proqramı saxlanıldı.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "naməlum xəta";
+      setEducationMessage(`Təhsil proqramı saxlanmadı: ${message}`);
+    }
+  }
+
+  function editEducation(item: EducationItem) {
+    setEducationForm(educationToForm(item));
+    setEducationMessage("");
+    changeAdminSection("education");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function removeEducation(id: number) {
+    setEducationMessage("Təhsil proqramı silinir...");
+    await onDeleteEducationItem(id);
+    if (educationForm.id === id) {
+      resetEducationForm();
+    }
+    setEducationMessage("Təhsil proqramı silindi.");
   }
 
   async function submitActor(event: FormEvent<HTMLFormElement>) {
@@ -3868,6 +4167,26 @@ function AdminPage({
       setNewsMessage("Xəbər şəkli yükləndi.");
     } catch (error) {
       setNewsMessage(error instanceof Error ? error.message : "Xəbər şəkli yüklənmədi.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function handleEducationPoster(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setEducationMessage("Poster yüklənir...");
+
+    try {
+      const upload = await uploadActorPhoto(file, session.token);
+      updateEducationForm("posterImage", upload.url);
+      await refreshMediaFiles();
+      setEducationMessage("Poster yükləndi.");
+    } catch (error) {
+      setEducationMessage(error instanceof Error ? error.message : "Poster yüklənmədi.");
     } finally {
       event.target.value = "";
     }
@@ -4815,6 +5134,167 @@ function AdminPage({
         </div>
       </section>
 
+      <section className={activeAdminSection === "education" ? "section admin-news-section" : "section admin-news-section admin-section-hidden"}>
+        <div className="admin-toolbar">
+          <div>
+            <h2>Təhsil</h2>
+            <p>Təhsil bölməsinin posterləri, kateqoriyaları və qeydiyyat müraciətləri burada idarə olunur.</p>
+          </div>
+          <a className="text-link" href="/education">
+            Public bax
+          </a>
+        </div>
+        <form className="admin-form news-admin-form" onSubmit={submitEducation}>
+          <div className="form-header">
+            <h2>{educationForm.id ? "Təhsil proqramı redaktə olunur" : "Yeni təhsil proqramı"}</h2>
+            <button className="button secondary" onClick={resetEducationForm} type="button">
+              Təmizlə
+            </button>
+          </div>
+          <div className="form-grid">
+            <label>
+              Başlıq
+              <input
+                onChange={(event) => updateEducationForm("title", event.target.value)}
+                required
+                value={educationForm.title}
+              />
+            </label>
+            <label>
+              Slug
+              <input
+                onChange={(event) => updateEducationForm("slug", slugify(event.target.value))}
+                placeholder="kamera-qarsisinda-oyun"
+                required
+                value={educationForm.slug}
+              />
+            </label>
+            <label>
+              Kateqoriya
+              <input
+                onChange={(event) => updateEducationForm("category", event.target.value)}
+                placeholder="Kamera təcrübəsi"
+                value={educationForm.category}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                onChange={(event) => updateEducationForm("status", event.target.value as EducationItem["status"])}
+                value={educationForm.status}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Yayımda</option>
+              </select>
+            </label>
+            <label>
+              Sıra
+              <input
+                min="1"
+                onChange={(event) => updateEducationForm("sortOrder", event.target.value)}
+                type="number"
+                value={educationForm.sortOrder}
+              />
+            </label>
+            <label>
+              Poster
+              <input accept="image/jpeg,image/png,image/webp" onChange={handleEducationPoster} type="file" />
+            </label>
+          </div>
+          <label>
+            Qısa təsvir
+            <textarea
+              onChange={(event) => updateEducationForm("excerpt", event.target.value)}
+              rows={3}
+              value={educationForm.excerpt}
+            />
+          </label>
+          <label>
+            Ətraflı məlumat
+            <textarea
+              onChange={(event) => updateEducationForm("description", event.target.value)}
+              rows={6}
+              value={educationForm.description}
+            />
+          </label>
+          {educationForm.posterImage && (
+            <div className="photo-preview">
+              <OptimizedImage alt="Təhsil posteri" src={educationForm.posterImage} />
+              <button className="button secondary" onClick={() => updateEducationForm("posterImage", "")} type="button">
+                Posteri sil
+              </button>
+            </div>
+          )}
+          {educationMessage && <div className="upload-state">{educationMessage}</div>}
+          <button className="button" type="submit">
+            {educationForm.id ? "Proqramı yadda saxla" : "Proqram əlavə et"}
+          </button>
+        </form>
+        <div className="admin-table news-admin-list">
+          {educationItems.length ? (
+            educationItems.map((item) => (
+              <div className="admin-row" key={item.id}>
+                <div className="education-admin-poster">
+                  {item.posterImage ? (
+                    <OptimizedImage alt={item.title} src={item.posterImage} />
+                  ) : (
+                    <span>{item.title.slice(0, 2).toLocaleUpperCase("az")}</span>
+                  )}
+                </div>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.excerpt || item.description}</p>
+                  <div className="badge-row">
+                    <span className={item.status === "published" ? "badge success" : "badge warning"}>
+                      {item.status === "published" ? "Yayımda" : "Draft"}
+                    </span>
+                    <span className="badge">{item.category}</span>
+                    {item.sortOrder && <span className="badge">Sıra: {item.sortOrder}</span>}
+                  </div>
+                </div>
+                <div className="row-actions">
+                  <button className="button secondary" onClick={() => editEducation(item)} type="button">
+                    Redaktə
+                  </button>
+                  <button className="button danger" onClick={() => removeEducation(item.id)} type="button">
+                    Sil
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h2>Təhsil proqramı yoxdur</h2>
+              <p>İlk posterli təhsil proqramını yuxarıdakı formadan əlavə et.</p>
+            </div>
+          )}
+        </div>
+        <div className="admin-table news-admin-list">
+          <div className="section-heading-row">
+            <h2>Təhsil müraciətləri</h2>
+            <span>{educationApplications.length} müraciət</span>
+          </div>
+          {educationApplications.length ? (
+            educationApplications.map((application) => (
+              <div className="admin-row compact" key={application.id}>
+                <div>
+                  <h3>{application.name}</h3>
+                  <p>{application.courseTitle || "Ümumi müraciət"} · {application.phone}</p>
+                  {application.note && <p>{application.note}</p>}
+                  <small>{new Date(application.createdAt).toLocaleString("az-AZ")}</small>
+                </div>
+                <span className="badge warning">{application.status}</span>
+              </div>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h2>Müraciət yoxdur</h2>
+              <p>Təhsil səhifəsindən göndərilən anketlər burada görünəcək.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className={activeAdminSection === "media" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <div>
@@ -5264,6 +5744,8 @@ function App() {
   const [aiFeedback, setAiFeedback] = useState<AiCastingFeedback[]>([]);
   const [aiIndexStatus, setAiIndexStatus] = useState<AiIndexStatus | null>(null);
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
+  const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
+  const [educationApplications, setEducationApplications] = useState<EducationApplication[]>([]);
   const [siteViewStats, setSiteViewStats] = useState<SiteViewStats>(EMPTY_SITE_VIEW_STATS);
   const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">("loading");
   const path = window.location.pathname;
@@ -5311,6 +5793,17 @@ function App() {
   }, []);
 
   useEffect(() => {
+    fetchEducationItems()
+      .then((items) => {
+        setEducationItems(items);
+        setApiStatus("online");
+      })
+      .catch(() => {
+        setApiStatus("offline");
+      });
+  }, []);
+
+  useEffect(() => {
     setSeo(getRouteSeo(path, actors, newsPosts));
   }, [actors, newsPosts, path]);
 
@@ -5320,6 +5813,7 @@ function App() {
       setAuditLogs([]);
       setAiFeedback([]);
       setAiIndexStatus(null);
+      setEducationApplications([]);
       return;
     }
 
@@ -5327,13 +5821,14 @@ function App() {
     const adminToken = adminSession.token;
 
     async function loadAdminData() {
-      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus, nextNewsPosts] =
+      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus, nextNewsPosts, nextEducation] =
         await Promise.allSettled([
           fetchApplications(adminToken),
           fetchAuditLogs(adminToken),
           fetchAiCastingFeedback(adminToken),
           fetchAiIndexStatus(adminToken),
           fetchAdminNews(adminToken),
+          fetchAdminEducation(adminToken),
         ]);
 
       if (!isActive) {
@@ -5346,6 +5841,7 @@ function App() {
         nextAiFeedback,
         nextAiIndexStatus,
         nextNewsPosts,
+        nextEducation,
       ].some(
         (result) =>
           result.status === "rejected" &&
@@ -5379,6 +5875,11 @@ function App() {
 
       if (nextNewsPosts.status === "fulfilled") {
         setNewsPosts(nextNewsPosts.value);
+      }
+
+      if (nextEducation.status === "fulfilled") {
+        setEducationItems(nextEducation.value.items);
+        setEducationApplications(nextEducation.value.applications);
       }
     }
 
@@ -5490,6 +5991,38 @@ function App() {
     setApiStatus("online");
   }
 
+  async function saveEducationItem(item: EducationItemInput) {
+    if (!adminSession) {
+      return;
+    }
+
+    await saveAdminEducationItem(item, adminSession.token);
+    const [nextEducation, nextAuditLogs] = await Promise.all([
+      fetchAdminEducation(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setEducationItems(nextEducation.items);
+    setEducationApplications(nextEducation.applications);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
+  async function deleteEducationItem(id: number) {
+    if (!adminSession) {
+      return;
+    }
+
+    await deleteAdminEducationItem(id, adminSession.token);
+    const [nextEducation, nextAuditLogs] = await Promise.all([
+      fetchAdminEducation(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setEducationItems(nextEducation.items);
+    setEducationApplications(nextEducation.applications);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
   async function rateActor(actorId: string, rating: number) {
     if (votes[actorId]) {
       return;
@@ -5539,12 +6072,25 @@ function App() {
   }
 
   function toggleShortlist(actorId: string) {
-    const nextShortlist = shortlist.includes(actorId)
-      ? shortlist.filter((id) => id !== actorId)
-      : [...shortlist, actorId];
+    const isAdding = !shortlist.includes(actorId);
+    const nextShortlist = isAdding
+      ? [...shortlist, actorId]
+      : shortlist.filter((id) => id !== actorId);
 
     setShortlist(nextShortlist);
     saveShortlist(nextShortlist);
+
+    if (isAdding) {
+      recordActorShortlist(actorId)
+        .then((result) => {
+          setActors((current) =>
+            current.map((actor) =>
+              actor.id === actorId ? { ...actor, shortlistCount: result.shortlistCount } : actor,
+            ),
+          );
+        })
+        .catch(() => undefined);
+    }
   }
 
   if (path === "/actors") {
@@ -5573,6 +6119,10 @@ function App() {
 
   if (path === "/news") {
     return <NewsListPage posts={newsPosts.filter((post) => post.status === "published")} />;
+  }
+
+  if (path === "/education") {
+    return <EducationPage items={educationItems.filter((item) => item.status === "published")} />;
   }
 
   if (path === "/about") {
@@ -5621,12 +6171,16 @@ function App() {
         aiIndexStatus={aiIndexStatus}
         actors={actors}
         newsPosts={newsPosts}
+        educationApplications={educationApplications}
+        educationItems={educationItems}
         onApplicationDelete={removeApplication}
         onApplicationStatusChange={changeApplicationStatus}
         onDeleteNewsPost={deleteNewsPost}
+        onDeleteEducationItem={deleteEducationItem}
         onLogout={handleAdminLogout}
         onActorsChange={updateActors}
         onResetDemoData={resetDemoData}
+        onSaveEducationItem={saveEducationItem}
         onSaveNewsPost={saveNewsPost}
         session={adminSession}
       />

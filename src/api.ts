@@ -156,6 +156,36 @@ export type SiteViewStats = {
   weekly: number;
 };
 
+export type EducationItem = {
+  id: number;
+  slug: string;
+  title: string;
+  category: string;
+  excerpt: string;
+  description: string;
+  posterImage?: string;
+  status: "draft" | "published";
+  sortOrder?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EducationApplication = {
+  id: number;
+  itemId?: number;
+  courseTitle: string;
+  name: string;
+  phone: string;
+  note: string;
+  status: "new" | "review" | "approved" | "rejected";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EducationItemInput = Omit<EducationItem, "createdAt" | "id" | "updatedAt"> & {
+  id?: number;
+};
+
 export async function fetchActorsFromApi() {
   const data = await request<{ actors: Actor[] }>("/actors");
   return data.actors;
@@ -183,6 +213,12 @@ export async function recordSiteView() {
 
 export async function recordActorProfileView(actorId: string) {
   return request<{ counted: boolean; viewCount: number }>(`/actors/${encodeURIComponent(actorId)}/view`, {
+    method: "POST",
+  });
+}
+
+export async function recordActorShortlist(actorId: string) {
+  return request<{ counted: boolean; shortlistCount: number }>(`/actors/${encodeURIComponent(actorId)}/shortlist`, {
     method: "POST",
   });
 }
@@ -231,11 +267,36 @@ export async function createActorApplication(application: NewActorApplication) {
   return data.application;
 }
 
+export async function fetchEducationItems() {
+  const data = await request<{ items: EducationItem[] }>("/education");
+  return data.items;
+}
+
+export async function createEducationApplication(application: {
+  courseTitle?: string;
+  itemId?: number;
+  name: string;
+  note?: string;
+  phone: string;
+}) {
+  const data = await request<{ application: EducationApplication }>("/education/applications", {
+    body: JSON.stringify({ application }),
+    method: "POST",
+  });
+  return data.application;
+}
+
 export async function fetchApplications(token?: string) {
   const data = await request<{ applications: ActorApplication[] }>("/admin/applications", {
     headers: authHeaders(token),
   });
   return data.applications;
+}
+
+export async function fetchAdminEducation(token?: string) {
+  return request<{ applications: EducationApplication[]; items: EducationItem[] }>("/admin/education", {
+    headers: authHeaders(token),
+  });
 }
 
 export async function fetchAuditLogs(token?: string) {
@@ -278,6 +339,23 @@ export async function saveAdminNewsPost(post: NewsPostInput, token?: string) {
 
 export async function deleteAdminNewsPost(id: number, token?: string) {
   return request<{ deleted: boolean }>(`/admin/news/${id}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
+}
+
+export async function saveAdminEducationItem(item: EducationItemInput, token?: string) {
+  const path = item.id ? `/admin/education/${item.id}` : "/admin/education";
+  const data = await request<{ item: EducationItem }>(path, {
+    body: JSON.stringify({ item }),
+    headers: authHeaders(token),
+    method: item.id ? "PUT" : "POST",
+  });
+  return data.item;
+}
+
+export async function deleteAdminEducationItem(id: number, token?: string) {
+  return request<{ deleted: boolean }>(`/admin/education/${id}`, {
     headers: authHeaders(token),
     method: "DELETE",
   });

@@ -60,6 +60,8 @@ db.exec(`
     ai_bio TEXT NOT NULL DEFAULT '',
     ai_profile TEXT NOT NULL DEFAULT '{}',
     view_count INTEGER NOT NULL DEFAULT 0,
+    ai_recommendation_count INTEGER NOT NULL DEFAULT 0,
+    shortlist_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -171,6 +173,42 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (usage_key, usage_date)
   );
+
+  CREATE TABLE IF NOT EXISTS shortlist_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id TEXT NOT NULL,
+    visitor_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(actor_id, visitor_hash),
+    FOREIGN KEY(actor_id) REFERENCES actors(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS education_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    excerpt TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    poster_image TEXT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+    sort_order INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS education_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER,
+    course_title TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'review', 'approved', 'rejected')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(item_id) REFERENCES education_items(id) ON DELETE SET NULL
+  );
 `);
 
 for (const statement of [
@@ -203,6 +241,8 @@ for (const statement of [
   "ALTER TABLE actors ADD COLUMN ai_bio TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE actors ADD COLUMN ai_profile TEXT NOT NULL DEFAULT '{}'",
   "ALTER TABLE actors ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE actors ADD COLUMN ai_recommendation_count INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE actors ADD COLUMN shortlist_count INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE news_posts ADD COLUMN project_name TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''",
@@ -489,6 +529,8 @@ export function fromDbActor(row) {
     paymentProvider: row.payment_provider ?? "manual",
     paymentReference: row.payment_reference ?? "",
     viewCount: row.view_count ?? 0,
+    aiRecommendationCount: row.ai_recommendation_count ?? 0,
+    shortlistCount: row.shortlist_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -529,6 +571,44 @@ export function getActorById(id) {
 
 export function deleteActor(id) {
   return db.prepare("DELETE FROM actors WHERE id = ?").run(id);
+}
+
+export function recordAiRecommendations(actorIds) {
+  const uniqueIds = Array.from(new Set(actorIds.filter(Boolean)));
+
+  if (!uniqueIds.length) {
+    return;
+  }
+
+  const update = db.prepare(
+    "UPDATE actors SET ai_recommendation_count = ai_recommendation_count + 1 WHERE id = ?",
+  );
+
+  db.transaction((ids) => {
+    ids.forEach((id) => update.run(id));
+  })(uniqueIds);
+}
+
+export function recordActorShortlist({ actorId, visitorHash }) {
+  if (!actorId || !visitorHash) {
+    throw new Error("invalid shortlist payload");
+  }
+
+  const result = db
+    .prepare(
+      `INSERT OR IGNORE INTO shortlist_events (actor_id, visitor_hash)
+       VALUES (?, ?)`,
+    )
+    .run(actorId, visitorHash);
+
+  if (result.changes) {
+    db.prepare("UPDATE actors SET shortlist_count = shortlist_count + 1 WHERE id = ?").run(actorId);
+  }
+
+  return {
+    counted: result.changes > 0,
+    count: getActorById(actorId)?.shortlistCount ?? 0,
+  };
 }
 
 export function seedIfEmpty() {
@@ -904,6 +984,128 @@ export function saveNewsPost(post) {
 
 export function deleteNewsPost(id) {
   return db.prepare("DELETE FROM news_posts WHERE id = ?").run(id);
+}
+
+function fromDbEducationItem(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    category: row.category,
+    excerpt: row.excerpt ?? "",
+    description: row.description ?? "",
+    posterImage: row.poster_image ?? undefined,
+    status: row.status,
+    sortOrder: row.sort_order ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function getEducationItems({ includeDrafts = false } = {}) {
+  const rows = includeDrafts
+    ? db.prepare("SELECT * FROM education_items ORDER BY COALESCE(sort_order, 999), datetime(created_at) DESC").all()
+    : db
+        .prepare(
+          "SELECT * FROM education_items WHERE status = 'published' ORDER BY COALESCE(sort_order, 999), datetime(created_at) DESC",
+        )
+        .all();
+
+  return rows.map(fromDbEducationItem);
+}
+
+export function getEducationItemById(id) {
+  const row = db.prepare("SELECT * FROM education_items WHERE id = ?").get(id);
+  return row ? fromDbEducationItem(row) : null;
+}
+
+export function saveEducationItem(item) {
+  const payload = {
+    category: String(item.category ?? "Təhsil").trim() || "Təhsil",
+    description: String(item.description ?? "").trim(),
+    excerpt: String(item.excerpt ?? "").trim(),
+    id: item.id ?? null,
+    posterImage: item.posterImage ?? null,
+    slug: String(item.slug ?? "").trim() || String(item.title ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    sortOrder: item.sortOrder ? Number(item.sortOrder) : null,
+    status: item.status === "published" ? "published" : "draft",
+    title: String(item.title ?? "").trim(),
+  };
+
+  if (!payload.title || !payload.slug) {
+    throw new Error("education title and slug are required");
+  }
+
+  const result = db.prepare(
+    `INSERT INTO education_items (
+      id, slug, title, category, excerpt, description, poster_image, status, sort_order, updated_at
+    ) VALUES (
+      @id, @slug, @title, @category, @excerpt, @description, @posterImage, @status, @sortOrder, CURRENT_TIMESTAMP
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      slug = excluded.slug,
+      title = excluded.title,
+      category = excluded.category,
+      excerpt = excluded.excerpt,
+      description = excluded.description,
+      poster_image = excluded.poster_image,
+      status = excluded.status,
+      sort_order = excluded.sort_order,
+      updated_at = CURRENT_TIMESTAMP`,
+  ).run(payload);
+
+  return getEducationItemById(item.id ?? result.lastInsertRowid);
+}
+
+export function deleteEducationItem(id) {
+  return db.prepare("DELETE FROM education_items WHERE id = ?").run(id);
+}
+
+function fromDbEducationApplication(row) {
+  return {
+    id: row.id,
+    itemId: row.item_id ?? undefined,
+    courseTitle: row.course_title ?? "",
+    name: row.name,
+    phone: row.phone,
+    note: row.note ?? "",
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function createEducationApplication(application) {
+  const payload = {
+    courseTitle: String(application.courseTitle ?? "").trim(),
+    itemId: application.itemId ? Number(application.itemId) : null,
+    name: String(application.name ?? "").trim(),
+    note: String(application.note ?? "").trim(),
+    phone: String(application.phone ?? "").trim(),
+  };
+
+  if (!payload.name || !payload.phone) {
+    throw new Error("education application name and phone are required");
+  }
+
+  const result = db.prepare(
+    `INSERT INTO education_applications (item_id, course_title, name, phone, note)
+     VALUES (@itemId, @courseTitle, @name, @phone, @note)`,
+  ).run(payload);
+
+  return getEducationApplicationById(result.lastInsertRowid);
+}
+
+export function getEducationApplicationById(id) {
+  const row = db.prepare("SELECT * FROM education_applications WHERE id = ?").get(id);
+  return row ? fromDbEducationApplication(row) : null;
+}
+
+export function getEducationApplications() {
+  return db
+    .prepare("SELECT * FROM education_applications ORDER BY datetime(created_at) DESC")
+    .all()
+    .map(fromDbEducationApplication);
 }
 
 export function getSiteViewCount() {

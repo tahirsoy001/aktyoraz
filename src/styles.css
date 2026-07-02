@@ -1766,6 +1766,74 @@ h1 {
   font-size: 16px;
 }
 
+.casting-history-panel {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0;
+}
+
+.casting-history-panel div {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+}
+
+.casting-history-panel strong {
+  color: var(--brand);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.casting-history-panel span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-bio-panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 18px;
+  padding: 18px;
+}
+
+.profile-bio-panel p {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0 0 14px;
+}
+
+.profile-source-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-source-grid div {
+  background: #fbfbf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.profile-source-grid strong {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.profile-source-grid span {
+  color: var(--ink);
+  font-weight: 900;
+}
+
 .filmography-panel {
   margin-top: 28px;
 }
@@ -3112,6 +3180,116 @@ h1 {
   margin-top: 16px;
 }
 
+.education-hero {
+  background:
+    linear-gradient(135deg, rgba(var(--accent-rgb), 0.1), transparent 44%),
+    linear-gradient(180deg, #ffffff, #fbfbf8);
+  padding: 110px 6vw 54px;
+}
+
+.education-hero h1 {
+  font-size: clamp(42px, 7vw, 88px);
+  letter-spacing: 0;
+  line-height: 0.95;
+  margin: 10px 0 18px;
+  max-width: 900px;
+}
+
+.education-hero .lead {
+  max-width: 760px;
+}
+
+.education-catalog {
+  display: grid;
+  gap: 36px;
+}
+
+.education-row {
+  display: grid;
+  gap: 12px;
+}
+
+.education-poster-track {
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 18px;
+  grid-auto-columns: minmax(220px, 280px);
+  grid-auto-flow: column;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.education-poster-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  overflow: hidden;
+  scroll-snap-align: start;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.education-poster-card:hover {
+  box-shadow: 0 18px 36px rgba(17, 24, 39, 0.12);
+  transform: translateY(-3px);
+}
+
+.education-poster-frame {
+  aspect-ratio: 2 / 3;
+  background: #15121d;
+  overflow: hidden;
+}
+
+.education-poster-frame img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.poster-placeholder {
+  align-items: center;
+  background: linear-gradient(145deg, #241135, #8d28e4);
+  color: #ffffff;
+  display: flex;
+  font-size: 42px;
+  font-weight: 900;
+  height: 100%;
+  justify-content: center;
+}
+
+.education-poster-card > div:last-child {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.education-poster-card h3 {
+  font-size: 20px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.education-poster-card p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.education-apply {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
+}
+
+.apply-form.compact {
+  max-width: none;
+}
+
 .news-detail-cover {
   aspect-ratio: 16 / 7;
   border-radius: 10px;
@@ -3288,6 +3466,33 @@ h1 {
   aspect-ratio: 16 / 10;
   border-radius: 8px;
   min-height: 0;
+}
+
+.education-admin-poster {
+  align-items: center;
+  background: #f4ecff;
+  border: 1px solid #dfc6ff;
+  border-radius: 8px;
+  color: var(--brand);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 24px;
+  font-weight: 900;
+  height: 120px;
+  justify-content: center;
+  overflow: hidden;
+  width: 86px;
+}
+
+.education-admin-poster img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.admin-row.compact {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 @keyframes card-in {
@@ -3496,7 +3701,9 @@ h1 {
   .medal-rules-grid,
   .news-grid,
   .profile-gallery,
+  .profile-source-grid,
   .verification-grid,
+  .education-apply,
   .profile-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3567,6 +3774,14 @@ h1 {
 
   .hero {
     padding-top: 30px;
+  }
+
+  .education-hero {
+    padding: 84px 18px 36px;
+  }
+
+  .education-poster-track {
+    grid-auto-columns: 72vw;
   }
 
   .stat-strip {
@@ -3678,6 +3893,9 @@ h1 {
   .gallery-preview,
   .medal-rules-grid,
   .profile-gallery,
+  .profile-source-grid,
+  .casting-history-panel,
+  .education-apply,
   .admin-medal-grid,
   .admin-row,
   .application-row,
@@ -3716,6 +3934,11 @@ h1 {
 
   .admin-sidebar-actions {
     grid-template-columns: 1fr;
+  }
+
+  .education-admin-poster {
+    height: 180px;
+    width: 100%;
   }
 
   .form-header .button,
