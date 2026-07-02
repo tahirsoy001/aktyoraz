@@ -2548,16 +2548,52 @@ function EducationPage({ items }: { items: EducationItem[] }) {
   }
 
   return (
-    <main className="page-shell">
+    <main className="page-shell education-page">
       <Header />
       <section className="education-hero">
-        <p className="eyebrow">Aktyor.az Təhsil</p>
-        <h1>Kamera, səhnə və kastinq hazırlığı üçün təhsil bölməsi.</h1>
-        <p className="lead">
-          Təlim proqramları, çəkiliş nümunələri və qeydiyyat anketləri bir yerdə toplanır. Burada
-          gələcək aktyor profillərinin peşəkar hazırlıq mərhələsi ayrıca sənədləşdirilir.
-        </p>
-        <a className="button" href="#education-apply">Qeydiyyatdan keç</a>
+        <div className="education-hero-copy">
+          <p className="eyebrow">Aktyor.az Təhsil</p>
+          <h1>Kamera, səhnə və kastinq hazırlığı üçün təhsil bölməsi.</h1>
+          <p className="lead">
+            Təlim proqramları, çəkiliş nümunələri və qeydiyyat anketləri bir yerdə toplanır. Burada
+            gələcək aktyor profillərinin peşəkar hazırlıq mərhələsi ayrıca sənədləşdirilir.
+          </p>
+        </div>
+        <form className="education-apply-card" onSubmit={submitEducationApplication}>
+          <div>
+            <p className="eyebrow">Təhsil üçün qeydiyyat</p>
+            <h2>Anket</h2>
+            <p>Müraciət edən şəxsin əlaqə məlumatları admin panelə düşür.</p>
+          </div>
+          <label>
+            Proqram
+            <select
+              onChange={(event) => setSelectedItemId(event.target.value ? Number(event.target.value) : "")}
+              value={selectedItemId}
+            >
+              <option value="">Ümumi müraciət</option>
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Ad soyad
+            <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+          </label>
+          <label>
+            Telefon
+            <input required value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+          </label>
+          <label>
+            Qeyd
+            <textarea rows={3} value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
+          </label>
+          <button className="button" type="submit">Müraciət et</button>
+          {message && <p className="share-state">{message}</p>}
+        </form>
       </section>
 
       <section className="section education-catalog">
@@ -2604,46 +2640,6 @@ function EducationPage({ items }: { items: EducationItem[] }) {
             <p>Admin paneldən poster və proqram əlavə ediləndə burada Netflix stilində görünəcək.</p>
           </div>
         )}
-      </section>
-
-      <section className="section education-apply" id="education-apply">
-        <div>
-          <p className="eyebrow">Təhsil üçün qeydiyyat</p>
-          <h2>Anket</h2>
-          <p className="lead">
-            Müraciət edən şəxsin əlaqə məlumatları admin panelə düşür və təhsil komandası tərəfindən yoxlanılır.
-          </p>
-        </div>
-        <form className="apply-form compact" onSubmit={submitEducationApplication}>
-          <label>
-            Proqram
-            <select
-              onChange={(event) => setSelectedItemId(event.target.value ? Number(event.target.value) : "")}
-              value={selectedItemId}
-            >
-              <option value="">Ümumi müraciət</option>
-              {items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Ad soyad
-            <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-          </label>
-          <label>
-            Telefon
-            <input required value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
-          </label>
-          <label>
-            Qeyd
-            <textarea rows={4} value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} />
-          </label>
-          <button className="button" type="submit">Müraciət et</button>
-          {message && <p className="share-state">{message}</p>}
-        </form>
       </section>
     </main>
   );
