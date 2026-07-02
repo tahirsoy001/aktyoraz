@@ -58,7 +58,8 @@ const defaultAdminName = process.env.ADMIN_NAME ?? "Aktyor.az Admin";
 const openaiApiKey = process.env.OPENAI_API_KEY ?? "";
 const openaiModel = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
 const openaiEmbeddingModel = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
-const openaiCastingDailyLimit = Math.max(0, Number(process.env.OPENAI_CASTING_DAILY_LIMIT ?? 10));
+const openaiCastingIpDailyLimit = Math.max(0, Number(process.env.OPENAI_CASTING_DAILY_LIMIT ?? 10));
+const openaiCastingGlobalDailyLimit = Math.max(0, Number(process.env.OPENAI_CASTING_GLOBAL_DAILY_LIMIT ?? 100));
 const uploadDir = path.resolve(__dirname, "..", process.env.UPLOAD_DIR ?? "uploads");
 const uploadBaseUrl = process.env.UPLOAD_BASE_URL ?? "";
 const adminLoginRateLimitWindowMs = Number(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
@@ -736,32 +737,85 @@ function bakuDateKey(date = new Date()) {
   }).format(date);
 }
 
-function openAiCastingBudget() {
+function openAiCastingBudget(request) {
   const usageDate = bakuDateKey();
-  const usageKey = "casting-search";
+  const globalUsageKey = "casting-search:global";
+  const ipUsageKey = `casting-search:ip:${contentHash(getClientIp(request)).slice(0, 32)}`;
+  const globalCurrent = getAiUsage({ usageDate, usageKey: globalUsageKey });
+  const ipCurrent = getAiUsage({ usageDate, usageKey: ipUsageKey });
 
-  if (!openaiApiKey || openaiCastingDailyLimit <= 0) {
+  if (!openaiApiKey || openaiCastingIpDailyLimit <= 0 || openaiCastingGlobalDailyLimit <= 0) {
     return {
       allowed: false,
-      count: getAiUsage({ usageDate, usageKey }).count,
       enabled: Boolean(openaiApiKey),
-      limit: openaiCastingDailyLimit,
+      global: {
+        count: globalCurrent.count,
+        limit: openaiCastingGlobalDailyLimit,
+        usageKey: globalUsageKey,
+      },
+      ip: {
+        count: ipCurrent.count,
+        limit: openaiCastingIpDailyLimit,
+        usageKey: ipUsageKey,
+      },
       limited: Boolean(openaiApiKey),
       usageDate,
-      usageKey,
     };
   }
 
-  const usage = consumeAiUsageSlot({
-    limit: openaiCastingDailyLimit,
+  if (ipCurrent.count >= openaiCastingIpDailyLimit || globalCurrent.count >= openaiCastingGlobalDailyLimit) {
+    return {
+      allowed: false,
+      enabled: true,
+      global: {
+        count: globalCurrent.count,
+        limit: openaiCastingGlobalDailyLimit,
+        usageKey: globalUsageKey,
+      },
+      ip: {
+        count: ipCurrent.count,
+        limit: openaiCastingIpDailyLimit,
+        usageKey: ipUsageKey,
+      },
+      limited: true,
+      usageDate,
+    };
+  }
+
+  const ipUsage = consumeAiUsageSlot({
+    limit: openaiCastingIpDailyLimit,
     usageDate,
-    usageKey,
+    usageKey: ipUsageKey,
+  });
+
+  if (!ipUsage.allowed) {
+    return {
+      allowed: false,
+      enabled: true,
+      global: {
+        count: globalCurrent.count,
+        limit: openaiCastingGlobalDailyLimit,
+        usageKey: globalUsageKey,
+      },
+      ip: ipUsage,
+      limited: true,
+      usageDate,
+    };
+  }
+
+  const globalUsage = consumeAiUsageSlot({
+    limit: openaiCastingGlobalDailyLimit,
+    usageDate,
+    usageKey: globalUsageKey,
   });
 
   return {
-    ...usage,
+    allowed: globalUsage.allowed,
     enabled: true,
-    limited: !usage.allowed,
+    global: globalUsage,
+    ip: ipUsage,
+    limited: !globalUsage.allowed,
+    usageDate,
   };
 }
 
@@ -1473,7 +1527,7 @@ app.post("/api/ai/casting-search", async (request, response, next) => {
 
   try {
     const actors = getActors();
-    const budget = openAiCastingBudget();
+    const budget = openAiCastingBudget(request);
     const result = await aiCastingSearch(prompt, actors, limit, { useOpenAi: budget.allowed });
     const actorsById = new Map(actors.map((actor) => [actor.id, actor]));
 
@@ -1481,9 +1535,13 @@ app.post("/api/ai/casting-search", async (request, response, next) => {
       analysis: result.analysis,
       mode: result.mode,
       openai: {
-        dailyLimit: budget.limit,
-        dailyUsed: budget.count,
+        dailyLimit: budget.ip.limit,
+        dailyUsed: budget.ip.count,
         enabled: budget.enabled,
+        globalDailyLimit: budget.global.limit,
+        globalDailyUsed: budget.global.count,
+        ipDailyLimit: budget.ip.limit,
+        ipDailyUsed: budget.ip.count,
         limited: budget.limited,
         resetTimezone: "Asia/Baku",
         usageDate: budget.usageDate,

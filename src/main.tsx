@@ -2334,6 +2334,10 @@ function CastingAiPage({
     dailyLimit: number;
     dailyUsed: number;
     enabled: boolean;
+    globalDailyLimit?: number;
+    globalDailyUsed?: number;
+    ipDailyLimit?: number;
+    ipDailyUsed?: number;
     limited: boolean;
   } | null>(null);
   const [error, setError] = useState("");
@@ -2433,8 +2437,11 @@ function CastingAiPage({
           {mode && (
             <div className="upload-state">
               Rejim: {mode === "openai" ? "OpenAI AI scoring" : "Lokal qayda əsaslı fallback"}
-              {openAiUsage?.enabled && openAiUsage.dailyLimit > 0
-                ? ` · OpenAI: ${openAiUsage.dailyUsed}/${openAiUsage.dailyLimit} günlük istifadə`
+              {openAiUsage?.enabled && (openAiUsage.ipDailyLimit ?? openAiUsage.dailyLimit) > 0
+                ? ` · Sənin limitin: ${openAiUsage.ipDailyUsed ?? openAiUsage.dailyUsed}/${openAiUsage.ipDailyLimit ?? openAiUsage.dailyLimit}`
+                : ""}
+              {openAiUsage?.enabled && openAiUsage.globalDailyLimit
+                ? ` · Sayt limiti: ${openAiUsage.globalDailyUsed ?? 0}/${openAiUsage.globalDailyLimit}`
                 : ""}
               {openAiUsage?.limited ? " · Günlük OpenAI limiti dolub, lokal nəticə göstərilir." : ""}
             </div>

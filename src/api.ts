@@ -201,6 +201,10 @@ export async function castingSearch(prompt: string, limit = 6) {
       dailyLimit: number;
       dailyUsed: number;
       enabled: boolean;
+      globalDailyLimit?: number;
+      globalDailyUsed?: number;
+      ipDailyLimit?: number;
+      ipDailyUsed?: number;
       limited: boolean;
       resetTimezone: string;
       usageDate: string;

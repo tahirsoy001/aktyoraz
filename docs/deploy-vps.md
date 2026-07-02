@@ -65,6 +65,7 @@ JWT_SECRET=replace-with-real-64-plus-character-secret
 ADMIN_PASSWORD=replace-with-real-strong-password
 OPENAI_API_KEY=replace-with-openai-api-key
 OPENAI_CASTING_DAILY_LIMIT=10
+OPENAI_CASTING_GLOBAL_DAILY_LIMIT=100
 ```
 
 ## 4. Systemd API Service
