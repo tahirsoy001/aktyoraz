@@ -20,6 +20,7 @@ import {
   db,
   deleteActor,
   deleteApplication,
+  deleteEducationApplication,
   deleteEducationItem,
   deleteNewsPost,
   getAdminByEmail,
@@ -48,6 +49,7 @@ import {
   seedIfEmpty,
   replaceActors,
   updateApplicationStatus,
+  updateEducationApplicationStatus,
 } from "./db.js";
 
 const app = express();
@@ -1962,6 +1964,48 @@ app.delete("/api/admin/education/:id", requireAdmin, (request, response, next) =
       details: {},
       entityId: String(id),
       entityType: "education",
+    });
+    response.json({ deleted: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/admin/education/applications/:id", requireAdmin, (request, response, next) => {
+  try {
+    const application = updateEducationApplicationStatus(
+      Number(request.params.id),
+      request.body?.status,
+    );
+
+    if (!application) {
+      response.status(404).json({ error: "education application not found" });
+      return;
+    }
+
+    createAuditLog({
+      action: "education_application_status_update",
+      adminEmail: request.admin.email,
+      details: { status: application.status },
+      entityId: String(application.id),
+      entityType: "education_application",
+    });
+    response.json({ application });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/admin/education/applications/:id", requireAdmin, (request, response, next) => {
+  try {
+    const id = Number(request.params.id);
+    deleteEducationApplication(id);
+    createAuditLog({
+      action: "education_application_delete",
+      adminEmail: request.admin.email,
+      details: {},
+      entityId: String(id),
+      entityType: "education_application",
     });
     response.json({ deleted: true });
   } catch (error) {

@@ -1314,6 +1314,11 @@ h1 {
   color: #92400e;
 }
 
+.badge.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .badge.muted {
   background: #e5e7eb;
   color: #4b5563;
@@ -3322,10 +3327,17 @@ h1 {
 }
 
 .education-apply-card input:focus,
+.education-apply-card select:focus,
 .education-apply-card textarea:focus {
   border-color: #facc15;
   box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.22);
   outline: none;
+}
+
+.education-phone-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(122px, 0.32fr) minmax(0, 1fr);
 }
 
 .education-apply-card .button {
@@ -3663,6 +3675,31 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.education-application-row {
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.education-application-row.status-approved {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.education-application-row.status-rejected {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.education-application-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 @keyframes card-in {
   from {
     opacity: 0;
@@ -3988,6 +4025,10 @@ h1 {
   }
 
   .education-form-options {
+    grid-template-columns: 1fr;
+  }
+
+  .education-phone-row {
     grid-template-columns: 1fr;
   }
 

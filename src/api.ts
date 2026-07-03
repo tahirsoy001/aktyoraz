@@ -361,6 +361,26 @@ export async function deleteAdminEducationItem(id: number, token?: string) {
   });
 }
 
+export async function updateAdminEducationApplicationStatus(
+  id: number,
+  status: EducationApplication["status"],
+  token?: string,
+) {
+  const data = await request<{ application: EducationApplication }>(`/admin/education/applications/${id}`, {
+    body: JSON.stringify({ status }),
+    headers: authHeaders(token),
+    method: "PUT",
+  });
+  return data.application;
+}
+
+export async function deleteAdminEducationApplication(id: number, token?: string) {
+  return request<{ deleted: boolean }>(`/admin/education/applications/${id}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
+}
+
 export async function fetchAiIndexStatus(token?: string) {
   return request<AiIndexStatus>("/admin/ai-index/status", {
     headers: authHeaders(token),

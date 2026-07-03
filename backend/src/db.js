@@ -1076,16 +1076,21 @@ function fromDbEducationApplication(row) {
 }
 
 export function createEducationApplication(application) {
+  const phone = String(application.phone ?? "").trim().replace(/\s/g, "");
   const payload = {
     courseTitle: String(application.courseTitle ?? "").trim(),
     itemId: application.itemId ? Number(application.itemId) : null,
     name: String(application.name ?? "").trim(),
     note: String(application.note ?? "").trim(),
-    phone: String(application.phone ?? "").trim(),
+    phone,
   };
 
   if (!payload.name || !payload.phone) {
     throw new Error("education application name and phone are required");
+  }
+
+  if (!/^\+\d{8,15}$/.test(payload.phone)) {
+    throw new Error("valid education application phone is required");
   }
 
   const result = db.prepare(
@@ -1106,6 +1111,25 @@ export function getEducationApplications() {
     .prepare("SELECT * FROM education_applications ORDER BY datetime(created_at) DESC")
     .all()
     .map(fromDbEducationApplication);
+}
+
+export function updateEducationApplicationStatus(id, status) {
+  const allowedStatuses = new Set(["new", "review", "approved", "rejected"]);
+  const nextStatus = String(status ?? "").trim();
+
+  if (!allowedStatuses.has(nextStatus)) {
+    throw new Error("invalid education application status");
+  }
+
+  db.prepare(
+    "UPDATE education_applications SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+  ).run(nextStatus, Number(id));
+
+  return getEducationApplicationById(id);
+}
+
+export function deleteEducationApplication(id) {
+  return db.prepare("DELETE FROM education_applications WHERE id = ?").run(Number(id));
 }
 
 export function getSiteViewCount() {

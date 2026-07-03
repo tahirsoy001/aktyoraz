@@ -13,6 +13,7 @@ import {
   createActorApplication,
   createEducationApplication,
   deleteAdminMedia,
+  deleteAdminEducationApplication,
   deleteAdminEducationItem,
   deleteApplication,
   deleteAdminNewsPost,
@@ -49,6 +50,7 @@ import {
   saveAdminNewsPost,
   saveAdminEducationItem,
   SiteViewStats,
+  updateAdminEducationApplicationStatus,
   updateApplicationStatus,
   uploadActorPhoto,
 } from "@/api";
@@ -1521,6 +1523,9 @@ function HomePage({
             <a className="button secondary" href="/apply">
               Bazaya qoşul
             </a>
+            <a className="button secondary" href="/education">
+              Aktyorluq kursu
+            </a>
           </div>
           <div className="stat-strip">
             <div>
@@ -2521,6 +2526,13 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
 }
 
 function EducationPage({ items }: { items: EducationItem[] }) {
+  const phoneCountries = [
+    { code: "+994", label: "AZ +994", length: 9, placeholder: "50 123 45 67" },
+    { code: "+90", label: "TR +90", length: 10, placeholder: "532 123 45 67" },
+    { code: "+995", label: "GE +995", length: 9, placeholder: "599 12 34 56" },
+    { code: "+7", label: "RU +7", length: 10, placeholder: "999 123 45 67" },
+    { code: "+1", label: "US +1", length: 10, placeholder: "555 123 4567" },
+  ];
   const applicationOptions = [
     {
       description: "Kamera qarşısında oyun, kastinq davranışı və profil təqdimatı üzrə praktiki hazırlıq.",
@@ -2572,12 +2584,21 @@ function EducationPage({ items }: { items: EducationItem[] }) {
   ];
   const [activeApplication, setActiveApplication] = useState(applicationOptions[0].title);
   const [form, setForm] = useState({ name: "", note: "", phone: "" });
+  const [phoneCountryCode, setPhoneCountryCode] = useState(phoneCountries[0].code);
   const [message, setMessage] = useState("");
   const posterItems = items.length ? items : samplePosters;
   const categories = Array.from(new Set(posterItems.map((item) => item.category || "Tədris filmləri")));
+  const selectedPhoneCountry = phoneCountries.find((country) => country.code === phoneCountryCode) ?? phoneCountries[0];
+  const phoneDigits = form.phone.replace(/\D/g, "");
 
   async function submitEducationApplication(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (phoneDigits.length !== selectedPhoneCountry.length) {
+      setMessage(`${selectedPhoneCountry.label} üçün nömrə ${selectedPhoneCountry.length} rəqəmdən ibarət olmalıdır.`);
+      return;
+    }
+
+    const fullPhone = `${phoneCountryCode}${phoneDigits}`;
     setMessage("Müraciət göndərilir...");
 
     try {
@@ -2585,7 +2606,7 @@ function EducationPage({ items }: { items: EducationItem[] }) {
         courseTitle: activeApplication,
         name: form.name,
         note: form.note,
-        phone: form.phone,
+        phone: fullPhone,
       });
       setForm({ name: "", note: "", phone: "" });
       setMessage("Müraciət qəbul olundu. Komandamız sizinlə əlaqə saxlayacaq.");
@@ -2631,7 +2652,28 @@ function EducationPage({ items }: { items: EducationItem[] }) {
           </label>
           <label>
             Telefon
-            <input required value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+            <div className="education-phone-row">
+              <select
+                aria-label="Ölkə kodu"
+                onChange={(event) => setPhoneCountryCode(event.target.value)}
+                value={phoneCountryCode}
+              >
+                {phoneCountries.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                inputMode="tel"
+                maxLength={selectedPhoneCountry.length + 6}
+                onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                pattern="[0-9\\s()\\-]+"
+                placeholder={selectedPhoneCountry.placeholder}
+                required
+                value={form.phone}
+              />
+            </div>
           </label>
           <label>
             Qeyd
@@ -3859,6 +3901,8 @@ function AdminPage({
   onApplicationDelete,
   onApplicationStatusChange,
   onActorsChange,
+  onEducationApplicationDelete,
+  onEducationApplicationStatusChange,
   onDeleteNewsPost,
   onDeleteEducationItem,
   onSaveNewsPost,
@@ -3878,6 +3922,8 @@ function AdminPage({
   onApplicationDelete: (id: number) => Promise<void>;
   onApplicationStatusChange: (id: number, status: ActorApplication["status"]) => Promise<void>;
   onActorsChange: (actors: Actor[]) => Promise<void>;
+  onEducationApplicationDelete: (id: number) => Promise<void>;
+  onEducationApplicationStatusChange: (id: number, status: EducationApplication["status"]) => Promise<void>;
   onDeleteNewsPost: (id: number) => Promise<void>;
   onDeleteEducationItem: (id: number) => Promise<void>;
   onSaveNewsPost: (post: NewsPostInput) => Promise<void>;
@@ -5191,14 +5237,58 @@ function AdminPage({
           </div>
           {educationApplications.length ? (
             educationApplications.map((application) => (
-              <div className="admin-row compact" key={application.id}>
+              <div className={`admin-row compact education-application-row status-${application.status}`} key={application.id}>
                 <div>
                   <h3>{application.name}</h3>
-                  <p>{application.courseTitle || "Ümumi müraciət"} · {application.phone}</p>
+                  <p>
+                    {application.courseTitle || "Ümumi müraciət"} ·{" "}
+                    <a className="text-link" href={`tel:${application.phone.replace(/\s/g, "")}`}>
+                      {application.phone}
+                    </a>
+                  </p>
                   {application.note && <p>{application.note}</p>}
                   <small>{new Date(application.createdAt).toLocaleString("az-AZ")}</small>
                 </div>
-                <span className="badge warning">{application.status}</span>
+                <div className="education-application-actions">
+                  <span
+                    className={
+                      application.status === "approved"
+                        ? "badge success"
+                        : application.status === "rejected"
+                          ? "badge danger"
+                          : "badge warning"
+                    }
+                  >
+                    {application.status === "approved"
+                      ? "Cavablandırıldı"
+                      : application.status === "rejected"
+                        ? "Uyğun deyil"
+                        : application.status === "review"
+                          ? "Baxılır"
+                          : "Yeni"}
+                  </span>
+                  <button
+                    className="button secondary"
+                    onClick={() => onEducationApplicationStatusChange(application.id, "approved")}
+                    type="button"
+                  >
+                    Cavablandırıldı
+                  </button>
+                  <button
+                    className="button danger"
+                    onClick={() => onEducationApplicationStatusChange(application.id, "rejected")}
+                    type="button"
+                  >
+                    Uyğun deyil
+                  </button>
+                  <button
+                    className="button secondary"
+                    onClick={() => onEducationApplicationDelete(application.id)}
+                    type="button"
+                  >
+                    Sil
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -6063,6 +6153,38 @@ function App() {
     setApiStatus("online");
   }
 
+  async function changeEducationApplicationStatus(id: number, status: EducationApplication["status"]) {
+    if (!adminSession) {
+      return;
+    }
+
+    await updateAdminEducationApplicationStatus(id, status, adminSession.token);
+    const [nextEducation, nextAuditLogs] = await Promise.all([
+      fetchAdminEducation(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setEducationItems(nextEducation.items);
+    setEducationApplications(nextEducation.applications);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
+  async function removeEducationApplication(id: number) {
+    if (!adminSession) {
+      return;
+    }
+
+    await deleteAdminEducationApplication(id, adminSession.token);
+    const [nextEducation, nextAuditLogs] = await Promise.all([
+      fetchAdminEducation(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setEducationItems(nextEducation.items);
+    setEducationApplications(nextEducation.applications);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
   async function rateActor(actorId: string, rating: number) {
     if (votes[actorId]) {
       return;
@@ -6215,6 +6337,8 @@ function App() {
         educationItems={educationItems}
         onApplicationDelete={removeApplication}
         onApplicationStatusChange={changeApplicationStatus}
+        onEducationApplicationDelete={removeEducationApplication}
+        onEducationApplicationStatusChange={changeEducationApplicationStatus}
         onDeleteNewsPost={deleteNewsPost}
         onDeleteEducationItem={deleteEducationItem}
         onLogout={handleAdminLogout}
