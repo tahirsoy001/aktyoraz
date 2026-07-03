@@ -1272,9 +1272,6 @@ function Header() {
         <a className={isActive("/education") ? "nav-link active" : "nav-link"} href="/education">
           Təhsil
         </a>
-        <a className={isActive("/apply") ? "nav-link active" : "nav-link"} href="/apply">
-          Bazaya qoşul
-        </a>
         <a className={isActive("/shortlist") ? "nav-link active" : "nav-link"} href="/shortlist">
           Favoritlər
         </a>
@@ -1737,6 +1734,9 @@ function ActorsPage({
             </a>
             <a className="button secondary" href="/">
               Sadə axtarış
+            </a>
+            <a className="button secondary" href="/apply">
+              Bazaya qoşul
             </a>
           </div>
           <div className="rail-controls top-rail-controls" aria-label="Top 5 slayd idarəsi">
@@ -2523,16 +2523,16 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
 function EducationPage({ items }: { items: EducationItem[] }) {
   const applicationOptions = [
     {
-      description: "Platformada aktyor profili yaratmaq və rəqəmsal vizit kartı almaq üçün.",
-      title: "Bazaya qoşul",
+      description: "Kamera qarşısında oyun, kastinq davranışı və profil təqdimatı üzrə praktiki hazırlıq.",
+      title: "Aktyorluq kursu",
     },
     {
-      description: "Kamera, səhnə nitqi və kastinq hazırlığı üzrə təhsil müraciəti.",
-      title: "Təhsil qeydiyyatı",
+      description: "Aktyorla iş, səhnə quruluşu, mizansen və çəkiliş idarəetməsi üzrə təməl hazırlıq.",
+      title: "Rejissorluq kursu",
     },
     {
-      description: "Gələcək kino, serial və reklam layihələri üçün ayrıca anket.",
-      title: "Layihə anketi",
+      description: "Obraz, struktur, dialoq və qısa film ssenarisi yazmaq üçün praktik proqram.",
+      title: "Ssenari kursu",
     },
   ];
   const samplePosters: EducationItem[] = [
@@ -2602,7 +2602,7 @@ function EducationPage({ items }: { items: EducationItem[] }) {
           <p className="eyebrow">Aktyor.az Təhsil</p>
           <h1>Kamera, səhnə və kastinq hazırlığı üçün təhsil bölməsi.</h1>
           <p className="lead">
-            Bazaya qoşulmaq, təhsil qeydiyyatı və gələcək layihələr üçün müraciətlər bir mərkəzdə toplanır.
+            Aktyorluq, rejissorluq və ssenari üzrə müraciətlər bir mərkəzdə toplanır.
             Aşağı hissədə tədris müddətində çəkilən filmlərin posterləri nümayiş olunur.
           </p>
         </div>
@@ -3205,6 +3205,11 @@ function CastingAiPage({
             Personajı, yaş aralığını, görünüşü, dil tələblərini və emosional tonu qısa təsvir et.
             Sistem bazadakı profilləri uyğunluq faizi və səbəblə sıralayacaq.
           </p>
+          <div className="browse-hero-actions ai-search-actions">
+            <a className="button secondary" href="/apply">
+              Bazaya qoşul
+            </a>
+          </div>
         </div>
 
         <form className="ai-search-form" onSubmit={submitSearch}>
@@ -5179,6 +5184,30 @@ function AdminPage({
             Public bax
           </a>
         </div>
+        <div className="admin-table news-admin-list">
+          <div className="section-heading-row">
+            <h2>Təhsil müraciətləri</h2>
+            <span>{educationApplications.length} müraciət</span>
+          </div>
+          {educationApplications.length ? (
+            educationApplications.map((application) => (
+              <div className="admin-row compact" key={application.id}>
+                <div>
+                  <h3>{application.name}</h3>
+                  <p>{application.courseTitle || "Ümumi müraciət"} · {application.phone}</p>
+                  {application.note && <p>{application.note}</p>}
+                  <small>{new Date(application.createdAt).toLocaleString("az-AZ")}</small>
+                </div>
+                <span className="badge warning">{application.status}</span>
+              </div>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h2>Müraciət yoxdur</h2>
+              <p>Təhsil səhifəsindən göndərilən anketlər burada görünəcək.</p>
+            </div>
+          )}
+        </div>
         <form className="admin-form news-admin-form" onSubmit={submitEducation}>
           <div className="form-header">
             <h2>{educationForm.id ? "Poster redaktə olunur" : "Yeni film posteri"}</h2>
@@ -5301,30 +5330,6 @@ function AdminPage({
             <div className="empty-state">
               <h2>Poster yoxdur</h2>
               <p>Tədris müddətində çəkilən filmlərin ilk posterini yuxarıdakı formadan əlavə et.</p>
-            </div>
-          )}
-        </div>
-        <div className="admin-table news-admin-list">
-          <div className="section-heading-row">
-            <h2>Təhsil müraciətləri</h2>
-            <span>{educationApplications.length} müraciət</span>
-          </div>
-          {educationApplications.length ? (
-            educationApplications.map((application) => (
-              <div className="admin-row compact" key={application.id}>
-                <div>
-                  <h3>{application.name}</h3>
-                  <p>{application.courseTitle || "Ümumi müraciət"} · {application.phone}</p>
-                  {application.note && <p>{application.note}</p>}
-                  <small>{new Date(application.createdAt).toLocaleString("az-AZ")}</small>
-                </div>
-                <span className="badge warning">{application.status}</span>
-              </div>
-            ))
-          ) : (
-            <div className="empty-state">
-              <h2>Müraciət yoxdur</h2>
-              <p>Təhsil səhifəsindən göndərilən anketlər burada görünəcək.</p>
             </div>
           )}
         </div>
