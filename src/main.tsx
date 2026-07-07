@@ -2330,6 +2330,33 @@ function formatNewsDate(value?: string) {
   return Number.isFinite(date.getTime()) ? date.toLocaleDateString("az-AZ") : value;
 }
 
+function parseApiDateTime(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
+  const date = new Date(normalized);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function formatBakuDateTime(value?: string) {
+  const date = parseApiDateTime(value);
+
+  if (!date) {
+    return value ?? "";
+  }
+
+  return date.toLocaleString("az-AZ", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Baku",
+    year: "numeric",
+  });
+}
+
 function formatFileSize(size: number) {
   if (size >= 1024 * 1024) {
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
@@ -2483,6 +2510,8 @@ function renderNewsParagraph(paragraph: string, actors: Actor[]) {
 
 function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
   const [viewCount, setViewCount] = useState(post.viewCount ?? 0);
+  const [shareMessage, setShareMessage] = useState("");
+  const newsUrl = `${SITE_URL}/news/${post.slug}`;
   const paragraphs = post.content
     .split(/\n{2,}/)
     .map((item) => item.trim())
@@ -2497,6 +2526,27 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
       })
       .catch(() => undefined);
   }, [post.slug, post.viewCount]);
+
+  async function shareNewsPost() {
+    const shareData = {
+      text: post.excerpt,
+      title: post.title,
+      url: newsUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareMessage("Xəbər paylaşım pəncərəsi açıldı.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(newsUrl);
+      setShareMessage("Xəbər linki kopyalandı.");
+    } catch {
+      setShareMessage("Paylaşım alınmadı. Linki brauzer ünvanından kopyalaya bilərsiniz.");
+    }
+  }
 
   return (
     <main className="page-shell">
@@ -2522,6 +2572,15 @@ function NewsDetailPage({ actors, post }: { actors: Actor[]; post: NewsPost }) {
             <p key={paragraph}>{renderNewsParagraph(paragraph, actors)}</p>
           ))}
         </div>
+        <footer className="news-detail-actions">
+          <button className="button secondary share-button" onClick={shareNewsPost} type="button">
+            <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+              <path d="M18 8a3 3 0 1 0-2.8-4.05L8.9 7.1a3 3 0 1 0 0 1.8l6.3 3.15A3 3 0 1 0 16 10.6L9.7 7.45 16 4.3A3 3 0 0 0 18 8Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+            </svg>
+            <span>Xəbəri paylaş</span>
+          </button>
+          {shareMessage && <p className="share-state">{shareMessage}</p>}
+        </footer>
       </article>
     </main>
   );
@@ -4072,6 +4131,15 @@ function AdminPage({
   }
 
   async function removeNews(id: number) {
+    const post = newsPosts.find((item) => item.id === id);
+    const confirmed = window.confirm(
+      `"${post?.title ?? "Bu xəbər"}" silinsin? Bu əməliyyatı geri qaytarmaq mümkün deyil.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setNewsMessage("Xəbər silinir...");
     await onDeleteNewsPost(id);
     if (newsForm.id === id) {
@@ -5882,7 +5950,7 @@ function AdminPage({
                 <div>
                   <strong>{String(log.details.name ?? log.entityId ?? "Profil")}</strong>
                   <p>{auditDetailLines(log).join(" · ")}</p>
-                  <small>{log.adminEmail} · {new Date(log.createdAt).toLocaleString("az-AZ")}</small>
+                  <small>{log.adminEmail} · {formatBakuDateTime(log.createdAt)}</small>
                 </div>
                 <span>{auditActionLabel(log.action)}</span>
               </div>
@@ -5912,7 +5980,7 @@ function AdminPage({
                   </p>
                   <small>{auditDetailLines(log).join(" · ")}</small>
                 </div>
-                <span>{new Date(log.createdAt).toLocaleString("az-AZ")}</span>
+                <span>{formatBakuDateTime(log.createdAt)}</span>
               </div>
             ))
           ) : (
@@ -5939,7 +6007,7 @@ function AdminPage({
                     <strong>{String(log.details.name ?? log.entityId ?? "Profil")}</strong>
                     <p>{auditDetailLines(log).join(" · ")}</p>
                   </div>
-                  <span>{new Date(log.createdAt).toLocaleString("az-AZ")}</span>
+                  <span>{formatBakuDateTime(log.createdAt)}</span>
                 </div>
               ))
           ) : (

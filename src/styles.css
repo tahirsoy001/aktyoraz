@@ -1473,6 +1473,14 @@ h1 {
   flex: 0 0 auto;
 }
 
+.news-detail-actions {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  margin: 28px auto 0;
+  max-width: 880px;
+}
+
 .shortlist-actions {
   align-items: center;
   display: flex;
@@ -4261,8 +4269,33 @@ h1 {
     padding-inline: 18px;
   }
 
+  .news-grid {
+    gap: 18px;
+    grid-template-columns: 1fr;
+  }
+
+  .news-card {
+    border-radius: 14px;
+  }
+
+  .news-card-cover {
+    aspect-ratio: 4 / 5;
+  }
+
+  .news-card-body {
+    padding: 16px;
+  }
+
+  .news-card-body h2 {
+    font-size: 22px;
+  }
+
   .news-detail-cover {
     aspect-ratio: 4 / 3;
+  }
+
+  .news-detail-actions .button {
+    width: 100%;
   }
 
   .director-create,
