@@ -2,6 +2,8 @@ import { ChangeEvent, DragEvent, FormEvent, ImgHTMLAttributes, StrictMode, useEf
 import { createRoot } from "react-dom/client";
 import {
   AdminSession,
+  AdminUser,
+  AdminUserInput,
   ActorApplication,
   AuditLog,
   AiCastingFeedback,
@@ -14,6 +16,7 @@ import {
   createActorApplication,
   createEducationApplication,
   deleteAdminMedia,
+  deleteAdminUser,
   deleteActorInApi,
   deleteAdminEducationApplication,
   deleteAdminEducationItem,
@@ -29,6 +32,7 @@ import {
   fetchAdminEducation,
   fetchAdminMedia,
   fetchAdminNews,
+  fetchAdminUsers,
   fetchAiIndexStatus,
   fetchApplications,
   fetchEducationItems,
@@ -48,6 +52,7 @@ import {
   recordSiteView,
   reindexAiProfiles,
   resetSeedInApi,
+  saveAdminUser,
   saveAdminNewsPost,
   saveAdminEducationItem,
   SiteViewStats,
@@ -67,7 +72,7 @@ const DIRECTOR_PROJECTS_KEY = "aktyor-az-director-projects";
 const VOTER_KEY = "aktyor-az-voter-id";
 const ADMIN_SESSION_KEY = "aktyor-az-admin-session";
 const ADMIN_SECTION_KEY = "aktyor-az-admin-section";
-const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "education", "media", "applications", "payments", "audit"] as const;
+const ADMIN_SECTION_IDS = ["dashboard", "actorForm", "actors", "news", "education", "media", "applications", "admins", "payments", "audit"] as const;
 const EMPTY_SITE_VIEW_STATS: SiteViewStats = {
   daily: 0,
   monthly: 0,
@@ -537,6 +542,21 @@ const emptyForm: ActorForm = {
   paymentManualConfirmed: false,
   paymentProvider: "manual",
   paymentReference: "",
+};
+
+type AdminUserForm = {
+  email: string;
+  id?: number;
+  name: string;
+  password: string;
+  role: "admin" | "moderator";
+};
+
+const emptyAdminUserForm: AdminUserForm = {
+  email: "",
+  name: "",
+  password: "",
+  role: "moderator",
 };
 
 type NewsForm = {
@@ -2757,11 +2777,16 @@ function EducationPage({ items }: { items: EducationItem[] }) {
                   <span>{categoryItems.length} poster</span>
                 </div>
                 <div className="education-poster-track">
-                  {categoryItems.map((item) => (
+                  {categoryItems.map((item, index) => (
                     <article className="education-poster-card" key={item.id}>
                       <div className="education-poster-frame">
                         {item.posterImage ? (
-                          <OptimizedImage alt={item.title} src={item.posterImage} />
+                          <OptimizedImage
+                            alt={item.title}
+                            loading={index < 6 ? "eager" : "lazy"}
+                            sizes="(max-width: 560px) 78vw, 260px"
+                            src={item.posterImage}
+                          />
                         ) : (
                           <div className="poster-placeholder">{item.title.slice(0, 2).toLocaleUpperCase("az")}</div>
                         )}
@@ -3955,6 +3980,7 @@ function AdminPage({
   auditLogs,
   aiFeedback,
   aiIndexStatus,
+  adminUsers,
   applications,
   educationApplications,
   educationItems,
@@ -3971,6 +3997,8 @@ function AdminPage({
   onSaveNewsPost,
   onSaveEducationItem,
   onResetDemoData,
+  onAdminUserDelete,
+  onAdminUserSave,
   session,
   onLogout,
 }: {
@@ -3978,6 +4006,7 @@ function AdminPage({
   auditLogs: AuditLog[];
   aiFeedback: AiCastingFeedback[];
   aiIndexStatus: AiIndexStatus | null;
+  adminUsers: AdminUser[];
   applications: ActorApplication[];
   educationApplications: EducationApplication[];
   educationItems: EducationItem[];
@@ -3994,6 +4023,8 @@ function AdminPage({
   onSaveNewsPost: (post: NewsPostInput) => Promise<void>;
   onSaveEducationItem: (item: EducationItemInput) => Promise<void>;
   onResetDemoData: () => Promise<void>;
+  onAdminUserDelete: (id: number) => Promise<void>;
+  onAdminUserSave: (user: AdminUserInput) => Promise<void>;
   session: AdminSession;
   onLogout: () => void;
 }) {
@@ -4013,7 +4044,10 @@ function AdminPage({
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [mediaMessage, setMediaMessage] = useState("");
   const [mediaPickerTarget, setMediaPickerTarget] = useState<"profile" | "gallery" | "news" | "education" | null>(null);
+  const [adminUserForm, setAdminUserForm] = useState<AdminUserForm>(emptyAdminUserForm);
+  const [adminUserMessage, setAdminUserMessage] = useState("");
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
+  const isSuperAdmin = session.admin.role !== "moderator";
   const canEditRatings = session.admin.role !== "moderator";
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
@@ -4049,7 +4083,7 @@ function AdminPage({
   const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
   const mediaStorageSize = mediaFiles.reduce((total, file) => total + file.size, 0);
   const mediaImageFiles = mediaFiles.filter((file) => /\.(avif|gif|jpe?g|png|webp)$/i.test(file.filename));
-  const adminSections: Array<{ id: AdminSectionId; label: string; meta: string }> = [
+  const allAdminSections = [
     { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
     { id: "actors", label: "Aktyorlar", meta: `${adminFilteredActors.length} nəticə` },
@@ -4057,13 +4091,21 @@ function AdminPage({
     { id: "education", label: "Təhsil", meta: `${educationItems.length} poster` },
     { id: "media", label: "Media", meta: `${mediaFiles.length} fayl` },
     { id: "applications", label: "Müraciətlər", meta: `${applications.length} müraciət` },
-    { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd` },
-    { id: "audit", label: "Audit log", meta: `${auditLogs.length} qeyd` },
-  ];
+    { id: "admins", label: "Adminlər", meta: `${adminUsers.length} istifadəçi`, adminOnly: true },
+    { id: "payments", label: "Ödəniş və kart", meta: `${cardPaymentLogCount} qeyd`, adminOnly: true },
+    { id: "audit", label: "Audit log", meta: `${auditLogs.length} qeyd`, adminOnly: true },
+  ] satisfies Array<{ id: AdminSectionId; label: string; meta: string; adminOnly?: boolean }>;
+  const adminSections = allAdminSections.filter((section) => isSuperAdmin || !section.adminOnly);
 
   useEffect(() => {
     setLocalAiIndexStatus(aiIndexStatus);
   }, [aiIndexStatus]);
+
+  useEffect(() => {
+    if (!adminSections.some((section) => section.id === activeAdminSection)) {
+      changeAdminSection("dashboard");
+    }
+  }, [activeAdminSection, adminSections]);
 
   useEffect(() => {
     refreshMediaFiles().catch((error) => {
@@ -4271,6 +4313,57 @@ function AdminPage({
   async function resetDemoData() {
     await onResetDemoData();
     resetForm();
+  }
+
+  function editAdminUser(user: AdminUser) {
+    setAdminUserForm({
+      email: user.email,
+      id: user.id,
+      name: user.name,
+      password: "",
+      role: user.role,
+    });
+    setAdminUserMessage("");
+  }
+
+  function resetAdminUserForm() {
+    setAdminUserForm(emptyAdminUserForm);
+    setAdminUserMessage("");
+  }
+
+  async function submitAdminUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAdminUserMessage("İstifadəçi saxlanılır...");
+
+    try {
+      await onAdminUserSave({
+        email: adminUserForm.email.trim(),
+        id: adminUserForm.id,
+        name: adminUserForm.name.trim(),
+        password: adminUserForm.password.trim() || undefined,
+        role: adminUserForm.role,
+      });
+      resetAdminUserForm();
+      setAdminUserMessage("İstifadəçi saxlanıldı.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "naməlum xəta";
+      setAdminUserMessage(`İstifadəçi saxlanmadı: ${message}`);
+    }
+  }
+
+  async function removeAdminUser(user: AdminUser) {
+    const confirmed = window.confirm(`${user.email} admin paneldən silinsin?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setAdminUserMessage("İstifadəçi silinir...");
+    await onAdminUserDelete(user.id);
+    if (adminUserForm.id === user.id) {
+      resetAdminUserForm();
+    }
+    setAdminUserMessage("İstifadəçi silindi.");
   }
 
   async function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
@@ -4526,6 +4619,7 @@ function AdminPage({
             <p className="eyebrow">Admin panel</p>
             <h1>İdarəetmə</h1>
             <span>{session.admin.name}</span>
+            <small className="role-badge">{isSuperAdmin ? "Admin" : "Moderator"}</small>
           </div>
           <nav className="admin-side-nav" aria-label="Admin bölmələri">
             {adminSections.map((section) => (
@@ -4888,6 +4982,7 @@ function AdminPage({
             <label>
               Kart statusu
               <select
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("cardStatus", event.target.value)}
                 value={form.cardStatus}
               >
@@ -4898,6 +4993,7 @@ function AdminPage({
             <label>
               Üzvlük statusu
               <select
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("membershipStatus", event.target.value)}
                 value={form.membershipStatus}
               >
@@ -4910,6 +5006,7 @@ function AdminPage({
             <label>
               İllik ödəniş
               <select
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("annualPaymentStatus", event.target.value)}
                 value={form.annualPaymentStatus}
               >
@@ -4921,6 +5018,7 @@ function AdminPage({
             <label>
               Ödəniş tarixi
               <input
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("annualPaymentDate", event.target.value)}
                 type="date"
                 value={form.annualPaymentDate}
@@ -4929,6 +5027,7 @@ function AdminPage({
             <label>
               Ödəniş mənbəyi
               <select
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("paymentProvider", event.target.value)}
                 value={form.paymentProvider}
               >
@@ -4939,6 +5038,7 @@ function AdminPage({
             <label>
               Ödəniş referansı
               <input
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("paymentReference", event.target.value)}
                 placeholder="Qəbz, transaction ID və ya qeyd"
                 value={form.paymentReference}
@@ -4947,6 +5047,7 @@ function AdminPage({
             <label>
               Kart verilmə tarixi
               <input
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("cardIssuedAt", event.target.value)}
                 type="date"
                 value={form.cardIssuedAt}
@@ -4955,6 +5056,7 @@ function AdminPage({
             <label>
               Kart bitmə tarixi
               <input
+                disabled={!isSuperAdmin}
                 onChange={(event) => updateForm("cardExpiresAt", event.target.value)}
                 type="date"
                 value={form.cardExpiresAt}
@@ -4963,6 +5065,7 @@ function AdminPage({
             <label className="consent-row">
               <input
                 checked={form.paymentManualConfirmed}
+                disabled={!isSuperAdmin}
                 onChange={(event) => setForm((current) => ({
                   ...current,
                   paymentManualConfirmed: event.target.checked,
@@ -4971,6 +5074,11 @@ function AdminPage({
               />
               Admin manual ödənişi təsdiqləyib
             </label>
+            {!isSuperAdmin && (
+              <div className="admin-note">
+                Ödəniş, üzvlük və kart sahələri yalnız admin tərəfindən dəyişdirilir.
+              </div>
+            )}
             <div className="admin-rating-preview">
               Görünən reytinq:{" "}
               {Math.min(
@@ -5785,9 +5893,11 @@ function AdminPage({
             >
               Axtarışı təmizlə
             </button>
-            <button className="button secondary" onClick={resetDemoData} type="button">
-              Demo datanı bərpa et
-            </button>
+            {isSuperAdmin && (
+              <button className="button secondary" onClick={resetDemoData} type="button">
+                Demo datanı bərpa et
+              </button>
+            )}
             <button className="button" onClick={startNewActor} type="button">
               Yeni aktyor əlavə et
             </button>
@@ -5938,6 +6048,101 @@ function AdminPage({
         )}
       </section>
 
+      <section className={activeAdminSection === "admins" ? "section" : "section admin-section-hidden"}>
+        <div className="admin-toolbar">
+          <div>
+            <h2>Admin və moderatorlar</h2>
+            <p>Moderator xəbər, aktyor, media və müraciətləri idarə edir. Reytinq, ödəniş və audit yalnız admin üçündür.</p>
+          </div>
+          <span>{adminUsers.length} istifadəçi</span>
+        </div>
+        <form className="admin-form compact-admin-form" onSubmit={submitAdminUser}>
+          <div className="form-header">
+            <div>
+              <h2>{adminUserForm.id ? "İstifadəçini redaktə et" : "Moderator yarat"}</h2>
+              <p className="admin-section-note">
+                Redaktədə parolu boş saxlasan, mövcud parol dəyişməyəcək.
+              </p>
+            </div>
+            <button className="button secondary" onClick={resetAdminUserForm} type="button">
+              Təmizlə
+            </button>
+          </div>
+          <div className="form-grid">
+            <label>
+              Ad
+              <input
+                onChange={(event) => setAdminUserForm((current) => ({ ...current, name: event.target.value }))}
+                required
+                value={adminUserForm.name}
+              />
+            </label>
+            <label>
+              Email
+              <input
+                onChange={(event) => setAdminUserForm((current) => ({ ...current, email: event.target.value }))}
+                required
+                type="email"
+                value={adminUserForm.email}
+              />
+            </label>
+            <label>
+              Rol
+              <select
+                onChange={(event) =>
+                  setAdminUserForm((current) => ({ ...current, role: event.target.value as AdminUserForm["role"] }))
+                }
+                value={adminUserForm.role}
+              >
+                <option value="moderator">Moderator</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label>
+              Parol
+              <input
+                minLength={10}
+                onChange={(event) => setAdminUserForm((current) => ({ ...current, password: event.target.value }))}
+                placeholder={adminUserForm.id ? "Dəyişmirsə boş saxla" : "Minimum 10 simvol"}
+                required={!adminUserForm.id}
+                type="text"
+                value={adminUserForm.password}
+              />
+            </label>
+          </div>
+          {adminUserMessage && <div className="upload-state">{adminUserMessage}</div>}
+          <button className="button" type="submit">
+            {adminUserForm.id ? "Yadda saxla" : "Moderator yarat"}
+          </button>
+        </form>
+        <div className="admin-table">
+          {adminUsers.map((user) => (
+            <div className="audit-row readable" key={user.id}>
+              <div>
+                <strong>{user.name}</strong>
+                <p>{user.email}</p>
+                <small>
+                  {user.role === "admin" ? "Admin" : "Moderator"} · {user.createdAt ? formatBakuDateTime(user.createdAt) : ""}
+                </small>
+              </div>
+              <div className="row-actions compact">
+                <button className="button secondary" onClick={() => editAdminUser(user)} type="button">
+                  Redaktə
+                </button>
+                <button
+                  className="button danger"
+                  disabled={user.id === session.admin.id}
+                  onClick={() => removeAdminUser(user)}
+                  type="button"
+                >
+                  Sil
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className={activeAdminSection === "payments" ? "section" : "section admin-section-hidden"}>
         <div className="admin-toolbar">
           <h2>Kart və ödəniş tarixçəsi</h2>
@@ -6048,6 +6253,7 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [aiFeedback, setAiFeedback] = useState<AiCastingFeedback[]>([]);
   const [aiIndexStatus, setAiIndexStatus] = useState<AiIndexStatus | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [newsPosts, setNewsPosts] = useState<NewsPost[]>([]);
   const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
   const [educationApplications, setEducationApplications] = useState<EducationApplication[]>([]);
@@ -6118,22 +6324,25 @@ function App() {
       setAuditLogs([]);
       setAiFeedback([]);
       setAiIndexStatus(null);
+      setAdminUsers([]);
       setEducationApplications([]);
       return;
     }
 
     let isActive = true;
     const adminToken = adminSession.token;
+    const isAdminRole = adminSession.admin.role !== "moderator";
 
     async function loadAdminData() {
-      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus, nextNewsPosts, nextEducation] =
+      const [nextApplications, nextAuditLogs, nextAiFeedback, nextAiIndexStatus, nextNewsPosts, nextEducation, nextAdminUsers] =
         await Promise.allSettled([
           fetchApplications(adminToken),
-          fetchAuditLogs(adminToken),
+          isAdminRole ? fetchAuditLogs(adminToken) : Promise.resolve([]),
           fetchAiCastingFeedback(adminToken),
           fetchAiIndexStatus(adminToken),
           fetchAdminNews(adminToken),
           fetchAdminEducation(adminToken),
+          isAdminRole ? fetchAdminUsers(adminToken) : Promise.resolve([]),
         ]);
 
       if (!isActive) {
@@ -6147,6 +6356,7 @@ function App() {
         nextAiIndexStatus,
         nextNewsPosts,
         nextEducation,
+        nextAdminUsers,
       ].some(
         (result) =>
           result.status === "rejected" &&
@@ -6186,6 +6396,10 @@ function App() {
         setEducationItems(nextEducation.value.items);
         setEducationApplications(nextEducation.value.applications);
       }
+
+      if (nextAdminUsers.status === "fulfilled") {
+        setAdminUsers(nextAdminUsers.value);
+      }
     }
 
     loadAdminData();
@@ -6202,7 +6416,9 @@ function App() {
     setActors(savedActors);
     saveActors(savedActors);
     if (adminSession?.token) {
-      setAuditLogs(await fetchAuditLogs(adminSession.token));
+      if (adminSession.admin.role !== "moderator") {
+        setAuditLogs(await fetchAuditLogs(adminSession.token));
+      }
       setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
     }
     setApiStatus("online");
@@ -6261,6 +6477,14 @@ function App() {
     setApiStatus("online");
   }
 
+  function fetchAuditLogsForCurrentAdmin() {
+    if (!adminSession || adminSession.admin.role === "moderator") {
+      return Promise.resolve([]);
+    }
+
+    return fetchAuditLogs(adminSession.token);
+  }
+
   async function changeApplicationStatus(id: number, status: ActorApplication["status"]) {
     if (!adminSession) {
       return;
@@ -6272,7 +6496,7 @@ function App() {
         application.id === updatedApplication.id ? updatedApplication : application,
       ),
     );
-    setAuditLogs(await fetchAuditLogs(adminSession.token));
+    setAuditLogs(await fetchAuditLogsForCurrentAdmin());
     setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
   }
 
@@ -6283,7 +6507,7 @@ function App() {
 
     await deleteApplication(id, adminSession.token);
     setApplications((current) => current.filter((application) => application.id !== id));
-    setAuditLogs(await fetchAuditLogs(adminSession.token));
+    setAuditLogs(await fetchAuditLogsForCurrentAdmin());
     setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
   }
 
@@ -6295,7 +6519,7 @@ function App() {
     await saveAdminNewsPost(post, adminSession.token);
     const [nextNewsPosts, nextAuditLogs] = await Promise.all([
       fetchAdminNews(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setNewsPosts(nextNewsPosts);
     setAuditLogs(nextAuditLogs);
@@ -6310,7 +6534,7 @@ function App() {
     await deleteAdminNewsPost(id, adminSession.token);
     const [nextNewsPosts, nextAuditLogs] = await Promise.all([
       fetchAdminNews(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setNewsPosts(nextNewsPosts);
     setAuditLogs(nextAuditLogs);
@@ -6325,7 +6549,7 @@ function App() {
     await saveAdminEducationItem(item, adminSession.token);
     const [nextEducation, nextAuditLogs] = await Promise.all([
       fetchAdminEducation(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setEducationItems(nextEducation.items);
     setEducationApplications(nextEducation.applications);
@@ -6341,7 +6565,7 @@ function App() {
     await deleteAdminEducationItem(id, adminSession.token);
     const [nextEducation, nextAuditLogs] = await Promise.all([
       fetchAdminEducation(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setEducationItems(nextEducation.items);
     setEducationApplications(nextEducation.applications);
@@ -6357,7 +6581,7 @@ function App() {
     await updateAdminEducationApplicationStatus(id, status, adminSession.token);
     const [nextEducation, nextAuditLogs] = await Promise.all([
       fetchAdminEducation(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setEducationItems(nextEducation.items);
     setEducationApplications(nextEducation.applications);
@@ -6373,10 +6597,40 @@ function App() {
     await deleteAdminEducationApplication(id, adminSession.token);
     const [nextEducation, nextAuditLogs] = await Promise.all([
       fetchAdminEducation(adminSession.token),
-      fetchAuditLogs(adminSession.token),
+      fetchAuditLogsForCurrentAdmin(),
     ]);
     setEducationItems(nextEducation.items);
     setEducationApplications(nextEducation.applications);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
+  async function saveAdminUserAccount(user: AdminUserInput) {
+    if (!adminSession || adminSession.admin.role === "moderator") {
+      return;
+    }
+
+    await saveAdminUser(user, adminSession.token);
+    const [nextAdminUsers, nextAuditLogs] = await Promise.all([
+      fetchAdminUsers(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setAdminUsers(nextAdminUsers);
+    setAuditLogs(nextAuditLogs);
+    setApiStatus("online");
+  }
+
+  async function removeAdminUserAccount(id: number) {
+    if (!adminSession || adminSession.admin.role === "moderator") {
+      return;
+    }
+
+    await deleteAdminUser(id, adminSession.token);
+    const [nextAdminUsers, nextAuditLogs] = await Promise.all([
+      fetchAdminUsers(adminSession.token),
+      fetchAuditLogs(adminSession.token),
+    ]);
+    setAdminUsers(nextAdminUsers);
     setAuditLogs(nextAuditLogs);
     setApiStatus("online");
   }
@@ -6528,6 +6782,7 @@ function App() {
         auditLogs={auditLogs}
         aiIndexStatus={aiIndexStatus}
         actors={actors}
+        adminUsers={adminUsers}
         newsPosts={newsPosts}
         educationApplications={educationApplications}
         educationItems={educationItems}
@@ -6541,6 +6796,8 @@ function App() {
         onActorCreate={createActor}
         onActorDelete={deleteActor}
         onActorUpdate={updateActor}
+        onAdminUserDelete={removeAdminUserAccount}
+        onAdminUserSave={saveAdminUserAccount}
         onResetDemoData={resetDemoData}
         onSaveEducationItem={saveEducationItem}
         onSaveNewsPost={saveNewsPost}

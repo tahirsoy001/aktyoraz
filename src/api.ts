@@ -35,9 +35,28 @@ export type AdminSession = {
     email: string;
     id: number;
     name: string;
-    role?: string;
+    role?: AdminRole;
   };
   token: string;
+};
+
+export type AdminRole = "admin" | "moderator";
+
+export type AdminUser = {
+  createdAt?: string;
+  email: string;
+  id: number;
+  name: string;
+  role: AdminRole;
+  updatedAt?: string;
+};
+
+export type AdminUserInput = {
+  email: string;
+  id?: number;
+  name: string;
+  password?: string;
+  role: AdminRole;
 };
 
 export type AuditLog = {
@@ -292,6 +311,30 @@ export async function fetchApplications(token?: string) {
     headers: authHeaders(token),
   });
   return data.applications;
+}
+
+export async function fetchAdminUsers(token?: string) {
+  const data = await request<{ users: AdminUser[] }>("/admin/users", {
+    headers: authHeaders(token),
+  });
+  return data.users;
+}
+
+export async function saveAdminUser(user: AdminUserInput, token?: string) {
+  const path = user.id ? `/admin/users/${user.id}` : "/admin/users";
+  const data = await request<{ user: AdminUser }>(path, {
+    body: JSON.stringify({ user }),
+    headers: authHeaders(token),
+    method: user.id ? "PUT" : "POST",
+  });
+  return data.user;
+}
+
+export async function deleteAdminUser(id: number, token?: string) {
+  return request<{ deleted: boolean }>(`/admin/users/${id}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
 }
 
 export async function fetchAdminEducation(token?: string) {

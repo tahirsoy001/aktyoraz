@@ -642,6 +642,55 @@ export function createAdminUser({ email, passwordHash, name, role = "admin" }) {
   return getAdminByEmail(email);
 }
 
+export function getAdminUsers() {
+  return db
+    .prepare("SELECT id, email, name, role, created_at, updated_at FROM admin_users ORDER BY datetime(created_at) DESC")
+    .all()
+    .map((row) => ({
+      createdAt: row.created_at,
+      email: row.email,
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      updatedAt: row.updated_at,
+    }));
+}
+
+export function saveAdminUser({ id, email, name, passwordHash, role = "moderator" }) {
+  const normalizedRole = role === "admin" ? "admin" : "moderator";
+  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const normalizedName = String(name ?? "").trim();
+
+  if (id) {
+    if (passwordHash) {
+      db.prepare(
+        `UPDATE admin_users
+         SET email = ?, name = ?, password_hash = ?, role = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+      ).run(normalizedEmail, normalizedName, passwordHash, normalizedRole, id);
+    } else {
+      db.prepare(
+        `UPDATE admin_users
+         SET email = ?, name = ?, role = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+      ).run(normalizedEmail, normalizedName, normalizedRole, id);
+    }
+
+    return getAdminById(id);
+  }
+
+  db.prepare(
+    `INSERT INTO admin_users (email, password_hash, name, role, updated_at)
+     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+  ).run(normalizedEmail, passwordHash, normalizedName, normalizedRole);
+
+  return getAdminById(db.prepare("SELECT id FROM admin_users WHERE email = ?").get(normalizedEmail).id);
+}
+
+export function deleteAdminUser(id) {
+  return db.prepare("DELETE FROM admin_users WHERE id = ?").run(id);
+}
+
 function fromDbApplication(row) {
   return {
     id: row.id,

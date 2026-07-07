@@ -19,12 +19,14 @@ import {
   consumeAiUsageSlot,
   db,
   deleteActor,
+  deleteAdminUser,
   deleteApplication,
   deleteEducationApplication,
   deleteEducationItem,
   deleteNewsPost,
   getAdminByEmail,
   getAdminById,
+  getAdminUsers,
   getApplications,
   getAuditLogs,
   getAiCastingFeedback,
@@ -45,6 +47,7 @@ import {
   saveEducationItem,
   saveNewsPost,
   saveActor,
+  saveAdminUser,
   saveActorEmbedding,
   seedIfEmpty,
   replaceActors,
@@ -200,7 +203,11 @@ function canEditActorRatings(admin) {
   return admin?.role !== "moderator";
 }
 
-function preserveActorRatingsForModerator(nextActor, previousActor, admin) {
+function canEditSensitiveAdminFields(admin) {
+  return admin?.role === "admin";
+}
+
+function preserveProtectedActorFieldsForModerator(nextActor, previousActor, admin) {
   if (canEditActorRatings(admin)) {
     return nextActor;
   }
@@ -209,6 +216,15 @@ function preserveActorRatingsForModerator(nextActor, previousActor, admin) {
     return {
       ...nextActor,
       adminBoost: 0,
+      annualPaymentDate: "",
+      annualPaymentStatus: "pending",
+      cardExpiresAt: "",
+      cardIssuedAt: "",
+      cardStatus: "inactive",
+      membershipStatus: "pending",
+      paymentManualConfirmed: false,
+      paymentProvider: "manual",
+      paymentReference: "",
       rating: 0,
       ratingCount: 0,
     };
@@ -217,6 +233,15 @@ function preserveActorRatingsForModerator(nextActor, previousActor, admin) {
   return {
     ...nextActor,
     adminBoost: previousActor.adminBoost,
+    annualPaymentDate: previousActor.annualPaymentDate,
+    annualPaymentStatus: previousActor.annualPaymentStatus,
+    cardExpiresAt: previousActor.cardExpiresAt,
+    cardIssuedAt: previousActor.cardIssuedAt,
+    cardStatus: previousActor.cardStatus,
+    membershipStatus: previousActor.membershipStatus,
+    paymentManualConfirmed: previousActor.paymentManualConfirmed,
+    paymentProvider: previousActor.paymentProvider,
+    paymentReference: previousActor.paymentReference,
     rating: previousActor.rating,
     ratingCount: previousActor.ratingCount,
   };
@@ -302,6 +327,15 @@ function requireAdmin(request, response, next) {
   } catch {
     response.status(401).json({ error: "invalid or expired admin token" });
   }
+}
+
+function requireSuperAdmin(request, response, next) {
+  if (!canEditSensitiveAdminFields(request.admin)) {
+    response.status(403).json({ error: "admin role is required" });
+    return;
+  }
+
+  next();
 }
 
 function getVerificationUrl(actor) {
@@ -1939,6 +1973,105 @@ app.get("/api/admin/me", requireAdmin, (request, response) => {
   response.json({ admin: request.admin });
 });
 
+app.get("/api/admin/users", requireAdmin, requireSuperAdmin, (_request, response) => {
+  response.json({ users: getAdminUsers() });
+});
+
+app.post("/api/admin/users", requireAdmin, requireSuperAdmin, async (request, response, next) => {
+  try {
+    const email = String(request.body?.user?.email ?? "").trim().toLowerCase();
+    const name = String(request.body?.user?.name ?? "").trim();
+    const password = String(request.body?.user?.password ?? "");
+    const role = request.body?.user?.role === "admin" ? "admin" : "moderator";
+
+    if (!email || !name || password.length < 10) {
+      response.status(400).json({ error: "email, name and 10+ character password are required" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = saveAdminUser({ email, name, passwordHash, role });
+    createAuditLog({
+      action: "admin_user_create",
+      adminEmail: request.admin.email,
+      details: { email: user.email, name: user.name, role: user.role },
+      entityId: String(user.id),
+      entityType: "admin_user",
+    });
+    response.status(201).json({ user });
+  } catch (error) {
+    if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      response.status(409).json({ error: "admin email already exists" });
+      return;
+    }
+
+    next(error);
+  }
+});
+
+app.put("/api/admin/users/:id", requireAdmin, requireSuperAdmin, async (request, response, next) => {
+  try {
+    const id = Number(request.params.id);
+    const email = String(request.body?.user?.email ?? "").trim().toLowerCase();
+    const name = String(request.body?.user?.name ?? "").trim();
+    const password = String(request.body?.user?.password ?? "");
+    const role = request.body?.user?.role === "admin" ? "admin" : "moderator";
+
+    if (!id || !email || !name) {
+      response.status(400).json({ error: "id, email and name are required" });
+      return;
+    }
+
+    if (password && password.length < 10) {
+      response.status(400).json({ error: "password must be at least 10 characters" });
+      return;
+    }
+
+    const passwordHash = password ? await bcrypt.hash(password, 12) : "";
+    const user = saveAdminUser({ id, email, name, passwordHash, role });
+
+    if (!user) {
+      response.status(404).json({ error: "admin user not found" });
+      return;
+    }
+
+    createAuditLog({
+      action: "admin_user_update",
+      adminEmail: request.admin.email,
+      details: { email: user.email, name: user.name, role: user.role },
+      entityId: String(user.id),
+      entityType: "admin_user",
+    });
+    response.json({ user });
+  } catch (error) {
+    if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      response.status(409).json({ error: "admin email already exists" });
+      return;
+    }
+
+    next(error);
+  }
+});
+
+app.delete("/api/admin/users/:id", requireAdmin, requireSuperAdmin, (request, response) => {
+  const id = Number(request.params.id);
+
+  if (id === request.admin.id) {
+    response.status(400).json({ error: "current admin cannot be deleted" });
+    return;
+  }
+
+  const result = deleteAdminUser(id);
+  createAuditLog({
+    action: "admin_user_delete",
+    adminEmail: request.admin.email,
+    details: {},
+    entityId: String(id),
+    entityType: "admin_user",
+  });
+  response.json({ deleted: result.changes > 0 });
+});
+
 app.get("/api/admin/applications", requireAdmin, (_request, response) => {
   response.json({ applications: getApplications() });
 });
@@ -2041,7 +2174,7 @@ app.delete("/api/admin/education/applications/:id", requireAdmin, (request, resp
   }
 });
 
-app.get("/api/admin/audit-logs", requireAdmin, (_request, response) => {
+app.get("/api/admin/audit-logs", requireAdmin, requireSuperAdmin, (_request, response) => {
   response.json({ logs: getAuditLogs() });
 });
 
@@ -2303,7 +2436,7 @@ app.put("/api/actors", requireAdmin, (request, response) => {
 
   const previousActors = new Map(getActors().map((actor) => [actor.id, actor]));
   const actorsForSave = actors.map((actor) =>
-    preserveActorRatingsForModerator(actor, previousActors.get(actor.id), request.admin),
+    preserveProtectedActorFieldsForModerator(actor, previousActors.get(actor.id), request.admin),
   );
   const savedActors = replaceActors(actorsForSave);
 
@@ -2408,7 +2541,7 @@ app.post("/api/actors", requireAdmin, (request, response) => {
     return;
   }
 
-  const actorForSave = preserveActorRatingsForModerator(actor, null, request.admin);
+  const actorForSave = preserveProtectedActorFieldsForModerator(actor, null, request.admin);
   const savedActor = saveActor(actorForSave);
   createAuditLog({
     action: "actor_create",
@@ -2430,7 +2563,7 @@ app.put("/api/actors/:id", requireAdmin, (request, response) => {
   }
 
   const previousActor = getActorById(request.params.id);
-  const actorForSave = preserveActorRatingsForModerator(actor, previousActor, request.admin);
+  const actorForSave = preserveProtectedActorFieldsForModerator(actor, previousActor, request.admin);
   const savedActor = saveActor(actorForSave);
 
   createAuditLog({
@@ -2504,7 +2637,7 @@ app.post("/api/actors/:id/rate", (request, response) => {
   }
 });
 
-app.post("/api/admin/reset-seed", requireAdmin, (request, response) => {
+app.post("/api/admin/reset-seed", requireAdmin, requireSuperAdmin, (request, response) => {
   createAuditLog({
     action: "reset_seed",
     adminEmail: request.admin.email,

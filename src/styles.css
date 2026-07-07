@@ -3466,14 +3466,29 @@ h1 {
   background: #18181b;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
-  content-visibility: auto;
-  contain-intrinsic-size: 480px 240px;
   display: grid;
   overflow: hidden;
   scroll-snap-align: start;
   transition:
     box-shadow 180ms ease,
     transform 180ms ease;
+}
+
+.role-badge {
+  background: #f3e8ff;
+  border: 1px solid rgba(147, 51, 234, 0.24);
+  border-radius: 999px;
+  color: var(--brand);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  margin-top: 10px;
+  padding: 5px 10px;
+  width: max-content;
+}
+
+.compact-admin-form {
+  margin-bottom: 18px;
 }
 
 .education-poster-card:hover {
