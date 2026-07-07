@@ -2831,6 +2831,71 @@ h1 {
   width: 96px;
 }
 
+.media-pick-button {
+  justify-self: start;
+}
+
+.media-picker {
+  background: #fbfbf8;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.media-picker-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.media-picker-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.media-picker-item {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.media-picker-item:hover {
+  border-color: #facc15;
+  box-shadow: 0 10px 24px rgba(250, 204, 21, 0.12);
+  transform: translateY(-1px);
+}
+
+.media-picker-item img {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.media-picker-item span {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gallery-preview,
 .profile-gallery {
   display: grid;

@@ -3947,6 +3947,7 @@ function AdminPage({
   const [educationMessage, setEducationMessage] = useState("");
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [mediaMessage, setMediaMessage] = useState("");
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<"profile" | "gallery" | "news" | "education" | null>(null);
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
@@ -3981,6 +3982,7 @@ function AdminPage({
   const cardPaymentLogCount = auditLogs.filter(isCardOrPaymentAudit).length;
   const ratingAuditCount = auditLogs.filter((log) => log.action === "rating_update").length;
   const mediaStorageSize = mediaFiles.reduce((total, file) => total + file.size, 0);
+  const mediaImageFiles = mediaFiles.filter((file) => /\.(avif|gif|jpe?g|png|webp)$/i.test(file.filename));
   const adminSections: Array<{ id: AdminSectionId; label: string; meta: string }> = [
     { id: "dashboard", label: "Dashboard", meta: `${actors.length} profil` },
     { id: "actorForm", label: "Yeni aktyor", meta: editingActor ? "redaktə" : "əlavə et" },
@@ -4282,6 +4284,78 @@ function AdminPage({
     const files = await fetchAdminMedia(session.token);
     setMediaFiles(files);
     return files;
+  }
+
+  function openMediaPicker(target: "profile" | "gallery" | "news" | "education") {
+    setMediaPickerTarget((current) => (current === target ? null : target));
+    if (!mediaFiles.length) {
+      refreshMediaFiles().catch((error) => {
+        setMediaMessage(getAdminRequestErrorMessage(error, "Media siyahısı yüklənmədi"));
+      });
+    }
+  }
+
+  function selectMediaFile(url: string) {
+    if (mediaPickerTarget === "profile") {
+      updateForm("photo", url);
+      setUploadError("");
+    }
+
+    if (mediaPickerTarget === "gallery") {
+      const galleryItems = form.gallery.split("\n").filter(Boolean);
+      updateForm("gallery", Array.from(new Set([...galleryItems, url])).join("\n"));
+      setUploadError("");
+    }
+
+    if (mediaPickerTarget === "news") {
+      updateNewsForm("coverImage", url);
+      setNewsMessage("Media kitabxanasından şəkil seçildi.");
+    }
+
+    if (mediaPickerTarget === "education") {
+      updateEducationForm("posterImage", url);
+      setEducationMessage("Media kitabxanasından poster seçildi.");
+    }
+
+    setMediaPickerTarget(null);
+  }
+
+  function renderMediaPicker(target: "profile" | "gallery" | "news" | "education") {
+    if (mediaPickerTarget !== target) {
+      return null;
+    }
+
+    return (
+      <div className="media-picker">
+        <div className="media-picker-header">
+          <strong>Media kitabxanası</strong>
+          <button className="text-link" onClick={() => refreshMediaFiles()} type="button">
+            Yenilə
+          </button>
+        </div>
+        {mediaImageFiles.length ? (
+          <div className="media-picker-grid">
+            {mediaImageFiles.map((file) => (
+              <button
+                className="media-picker-item"
+                key={file.filename}
+                onClick={() => selectMediaFile(file.url)}
+                title={file.filename}
+                type="button"
+              >
+                <OptimizedImage alt={file.filename} src={file.url} />
+                <span>{file.filename}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2>Media yoxdur</h2>
+            <p>Əvvəlcə bir şəkil yüklə, sonra eyni faylı buradan yenidən istifadə edə bilərsən.</p>
+          </div>
+        )}
+      </div>
+    );
   }
 
   async function removeMediaFile(filename: string) {
@@ -5009,6 +5083,10 @@ function AdminPage({
             Foto
             <input accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} type="file" />
           </label>
+          <button className="button secondary media-pick-button" onClick={() => openMediaPicker("profile")} type="button">
+            Mediadan seç
+          </button>
+          {renderMediaPicker("profile")}
           {isUploading && <div className="upload-state">Foto yüklənir...</div>}
           {uploadError && <div className="form-error">{uploadError}</div>}
           {form.photo && (
@@ -5023,6 +5101,10 @@ function AdminPage({
             Foto qalereyası
             <input accept="image/jpeg,image/png,image/webp" onChange={handleGalleryPhoto} type="file" />
           </label>
+          <button className="button secondary media-pick-button" onClick={() => openMediaPicker("gallery")} type="button">
+            Qalereyaya mediadan əlavə et
+          </button>
+          {renderMediaPicker("gallery")}
           {form.gallery && (
             <div className="gallery-preview">
               {form.gallery.split("\n").filter(Boolean).map((photoUrl) => (
@@ -5130,6 +5212,10 @@ function AdminPage({
               <input accept="image/jpeg,image/png,image/webp" onChange={handleNewsCover} type="file" />
             </label>
           </div>
+          <button className="button secondary media-pick-button" onClick={() => openMediaPicker("news")} type="button">
+            Cover üçün mediadan seç
+          </button>
+          {renderMediaPicker("news")}
           <label>
             Qısa giriş
             <textarea
@@ -5355,6 +5441,10 @@ function AdminPage({
               <input accept="image/jpeg,image/png,image/webp" onChange={handleEducationPoster} type="file" />
             </label>
           </div>
+          <button className="button secondary media-pick-button" onClick={() => openMediaPicker("education")} type="button">
+            Poster üçün mediadan seç
+          </button>
+          {renderMediaPicker("education")}
           <label>
             Qısa təsvir
             <textarea
