@@ -2818,6 +2818,16 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-note {
+  align-self: end;
+  background: #f7f3ff;
+  border: 1px solid rgba(148, 36, 226, 0.22);
+  border-radius: 8px;
+  color: #5b1b91;
+  font-weight: 800;
+  padding: 12px;
+}
+
 .photo-preview {
   align-items: center;
   display: flex;

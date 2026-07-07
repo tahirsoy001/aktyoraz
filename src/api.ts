@@ -35,6 +35,7 @@ export type AdminSession = {
     email: string;
     id: number;
     name: string;
+    role?: string;
   };
   token: string;
 };
@@ -446,6 +447,31 @@ export async function replaceActorsInApi(actors: Actor[], token?: string) {
     method: "PUT",
   });
   return data.actors;
+}
+
+export async function createActorInApi(actor: Actor, token?: string) {
+  const data = await request<{ actor: Actor }>("/actors", {
+    body: JSON.stringify({ actor }),
+    headers: authHeaders(token),
+    method: "POST",
+  });
+  return data.actor;
+}
+
+export async function updateActorInApi(actor: Actor, token?: string) {
+  const data = await request<{ actor: Actor }>(`/actors/${encodeURIComponent(actor.id)}`, {
+    body: JSON.stringify({ actor }),
+    headers: authHeaders(token),
+    method: "PUT",
+  });
+  return data.actor;
+}
+
+export async function deleteActorInApi(actorId: string, token?: string) {
+  return request<{ deleted: boolean }>(`/actors/${encodeURIComponent(actorId)}`, {
+    headers: authHeaders(token),
+    method: "DELETE",
+  });
 }
 
 export async function rateActorInApi(actorId: string, rating: number, voterId: string) {

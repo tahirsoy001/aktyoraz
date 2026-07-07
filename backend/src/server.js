@@ -188,11 +188,38 @@ function signAdminToken(admin) {
     {
       email: admin.email,
       name: admin.name,
+      role: admin.role,
       sub: String(admin.id),
     },
     jwtSecret,
     { expiresIn: "8h" },
   );
+}
+
+function canEditActorRatings(admin) {
+  return admin?.role !== "moderator";
+}
+
+function preserveActorRatingsForModerator(nextActor, previousActor, admin) {
+  if (canEditActorRatings(admin)) {
+    return nextActor;
+  }
+
+  if (!previousActor) {
+    return {
+      ...nextActor,
+      adminBoost: 0,
+      rating: 0,
+      ratingCount: 0,
+    };
+  }
+
+  return {
+    ...nextActor,
+    adminBoost: previousActor.adminBoost,
+    rating: previousActor.rating,
+    ratingCount: previousActor.ratingCount,
+  };
 }
 
 function adminLoginRateLimitKey(request) {
@@ -1902,6 +1929,7 @@ app.post("/api/admin/login", checkAdminLoginRateLimit, async (request, response)
       email: admin.email,
       id: admin.id,
       name: admin.name,
+      role: admin.role,
     },
     token: signAdminToken(admin),
   });
@@ -2274,9 +2302,12 @@ app.put("/api/actors", requireAdmin, (request, response) => {
   }
 
   const previousActors = new Map(getActors().map((actor) => [actor.id, actor]));
-  const savedActors = replaceActors(actors);
+  const actorsForSave = actors.map((actor) =>
+    preserveActorRatingsForModerator(actor, previousActors.get(actor.id), request.admin),
+  );
+  const savedActors = replaceActors(actorsForSave);
 
-  for (const actor of actors) {
+  for (const actor of actorsForSave) {
     const previousActor = previousActors.get(actor.id);
 
     if (!previousActor) {
@@ -2377,12 +2408,13 @@ app.post("/api/actors", requireAdmin, (request, response) => {
     return;
   }
 
-  const savedActor = saveActor(actor);
+  const actorForSave = preserveActorRatingsForModerator(actor, null, request.admin);
+  const savedActor = saveActor(actorForSave);
   createAuditLog({
     action: "actor_create",
     adminEmail: request.admin.email,
-    details: { name: actor.name },
-    entityId: actor.id,
+    details: { name: actorForSave.name },
+    entityId: actorForSave.id,
     entityType: "actor",
   });
 
@@ -2398,18 +2430,19 @@ app.put("/api/actors/:id", requireAdmin, (request, response) => {
   }
 
   const previousActor = getActorById(request.params.id);
-  const savedActor = saveActor(actor);
+  const actorForSave = preserveActorRatingsForModerator(actor, previousActor, request.admin);
+  const savedActor = saveActor(actorForSave);
 
   createAuditLog({
     action:
-      previousActor?.rating !== actor.rating ||
-      previousActor?.ratingCount !== actor.ratingCount ||
-      previousActor?.adminBoost !== actor.adminBoost
+      previousActor?.rating !== actorForSave.rating ||
+      previousActor?.ratingCount !== actorForSave.ratingCount ||
+      previousActor?.adminBoost !== actorForSave.adminBoost
         ? "rating_update"
         : "actor_update",
     adminEmail: request.admin.email,
-    details: { name: actor.name },
-    entityId: actor.id,
+    details: { name: actorForSave.name },
+    entityId: actorForSave.id,
     entityType: "actor",
   });
 

@@ -9,10 +9,12 @@ import {
   CastingPromptAnalysis,
   CastingSearchResult,
   createAiCastingFeedback,
+  createActorInApi,
   castingSearch,
   createActorApplication,
   createEducationApplication,
   deleteAdminMedia,
+  deleteActorInApi,
   deleteAdminEducationApplication,
   deleteAdminEducationItem,
   deleteApplication,
@@ -45,11 +47,11 @@ import {
   recordNewsPostView,
   recordSiteView,
   reindexAiProfiles,
-  replaceActorsInApi,
   resetSeedInApi,
   saveAdminNewsPost,
   saveAdminEducationItem,
   SiteViewStats,
+  updateActorInApi,
   updateAdminEducationApplicationStatus,
   updateApplicationStatus,
   uploadActorPhoto,
@@ -3900,7 +3902,9 @@ function AdminPage({
   newsPosts,
   onApplicationDelete,
   onApplicationStatusChange,
-  onActorsChange,
+  onActorCreate,
+  onActorDelete,
+  onActorUpdate,
   onEducationApplicationDelete,
   onEducationApplicationStatusChange,
   onDeleteNewsPost,
@@ -3921,7 +3925,9 @@ function AdminPage({
   newsPosts: NewsPost[];
   onApplicationDelete: (id: number) => Promise<void>;
   onApplicationStatusChange: (id: number, status: ActorApplication["status"]) => Promise<void>;
-  onActorsChange: (actors: Actor[]) => Promise<void>;
+  onActorCreate: (actor: Actor) => Promise<Actor>;
+  onActorDelete: (actorId: string) => Promise<void>;
+  onActorUpdate: (actor: Actor) => Promise<Actor>;
   onEducationApplicationDelete: (id: number) => Promise<void>;
   onEducationApplicationStatusChange: (id: number, status: EducationApplication["status"]) => Promise<void>;
   onDeleteNewsPost: (id: number) => Promise<void>;
@@ -3949,6 +3955,7 @@ function AdminPage({
   const [mediaMessage, setMediaMessage] = useState("");
   const [mediaPickerTarget, setMediaPickerTarget] = useState<"profile" | "gallery" | "news" | "education" | null>(null);
   const [activeAdminSection, setActiveAdminSection] = useState<AdminSectionId>(readAdminSection);
+  const canEditRatings = session.admin.role !== "moderator";
   const editingActor = useMemo(
     () => actors.find((actor) => actor.id === editingId),
     [actors, editingId],
@@ -4153,12 +4160,9 @@ function AdminPage({
     }
 
     const nextActor = formToActor(form, actors, editingId ?? undefined);
-    const nextActors = editingId
-      ? actors.map((actor) => (actor.id === editingId ? nextActor : actor))
-      : [nextActor, ...actors];
 
     try {
-      await onActorsChange(nextActors);
+      await (editingId ? onActorUpdate(nextActor) : onActorCreate(nextActor));
       resetForm();
       changeAdminSection("actors");
     } catch (error) {
@@ -4181,11 +4185,16 @@ function AdminPage({
   }
 
   async function changeStatus(actorId: string, status: Actor["status"]) {
-    await onActorsChange(actors.map((actor) => (actor.id === actorId ? { ...actor, status } : actor)));
+    const actor = actors.find((item) => item.id === actorId);
+    if (!actor) {
+      return;
+    }
+
+    await onActorUpdate({ ...actor, status });
   }
 
   async function removeActor(actorId: string) {
-    await onActorsChange(actors.filter((actor) => actor.id !== actorId));
+    await onActorDelete(actorId);
     if (editingId === actorId) {
       resetForm();
     }
@@ -4435,7 +4444,7 @@ function AdminPage({
     const duplicateSlug = actors.some((actor) => actor.slug === nextActor.slug);
     const savedActor = duplicateSlug ? { ...nextActor, slug: `${nextActor.slug}-${nextActor.id.toLowerCase()}` } : nextActor;
 
-    await onActorsChange([savedActor, ...actors]);
+    await onActorCreate(savedActor);
     await onApplicationDelete(application.id);
     editActor(savedActor);
   }
@@ -4749,6 +4758,7 @@ function AdminPage({
             <label>
               Real reytinq
               <input
+                disabled={!canEditRatings}
                 max="5"
                 min="0"
                 onChange={(event) => updateForm("rating", event.target.value)}
@@ -4760,6 +4770,7 @@ function AdminPage({
             <label>
               Səs sayı
               <input
+                disabled={!canEditRatings}
                 min="0"
                 onChange={(event) => updateForm("ratingCount", event.target.value)}
                 step="1"
@@ -4770,6 +4781,7 @@ function AdminPage({
             <label>
               Admin düzəlişi
               <input
+                disabled={!canEditRatings}
                 max="1"
                 min="-1"
                 onChange={(event) => updateForm("adminBoost", event.target.value)}
@@ -4778,6 +4790,11 @@ function AdminPage({
                 value={form.adminBoost}
               />
             </label>
+            {!canEditRatings && (
+              <div className="admin-note">
+                Moderator reytinq, səs sayı və admin düzəlişini dəyişə bilməz.
+              </div>
+            )}
             <label className="checkbox-card">
               <input
                 checked={Boolean(form.featuredOrder)}
@@ -6112,24 +6129,45 @@ function App() {
     };
   }, [adminSession]);
 
-  async function updateActors(nextActors: Actor[]) {
-    const previousActors = actors;
+  async function refreshActorsAfterAdminChange() {
+    const savedActors = await fetchActorsFromApi();
+    setActors(savedActors);
+    saveActors(savedActors);
+    if (adminSession?.token) {
+      setAuditLogs(await fetchAuditLogs(adminSession.token));
+      setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
+    }
+    setApiStatus("online");
+    return savedActors;
+  }
 
-    setActors(nextActors);
-    saveActors(nextActors);
-
+  async function createActor(actor: Actor) {
     try {
-      const savedActors = await replaceActorsInApi(nextActors, adminSession?.token);
-      setActors(savedActors);
-      saveActors(savedActors);
-      if (adminSession?.token) {
-        setAuditLogs(await fetchAuditLogs(adminSession.token));
-        setAiFeedback(await fetchAiCastingFeedback(adminSession.token));
-      }
-      setApiStatus("online");
+      const savedActor = await createActorInApi(actor, adminSession?.token);
+      await refreshActorsAfterAdminChange();
+      return savedActor;
     } catch (error) {
-      setActors(previousActors);
-      saveActors(previousActors);
+      setApiStatus("offline");
+      throw error;
+    }
+  }
+
+  async function updateActor(actor: Actor) {
+    try {
+      const savedActor = await updateActorInApi(actor, adminSession?.token);
+      await refreshActorsAfterAdminChange();
+      return savedActor;
+    } catch (error) {
+      setApiStatus("offline");
+      throw error;
+    }
+  }
+
+  async function deleteActor(actorId: string) {
+    try {
+      await deleteActorInApi(actorId, adminSession?.token);
+      await refreshActorsAfterAdminChange();
+    } catch (error) {
       setApiStatus("offline");
       throw error;
     }
@@ -6432,7 +6470,9 @@ function App() {
         onDeleteNewsPost={deleteNewsPost}
         onDeleteEducationItem={deleteEducationItem}
         onLogout={handleAdminLogout}
-        onActorsChange={updateActors}
+        onActorCreate={createActor}
+        onActorDelete={deleteActor}
+        onActorUpdate={updateActor}
         onResetDemoData={resetDemoData}
         onSaveEducationItem={saveEducationItem}
         onSaveNewsPost={saveNewsPost}

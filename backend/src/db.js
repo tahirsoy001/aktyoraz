@@ -248,6 +248,7 @@ for (const statement of [
   "ALTER TABLE news_posts ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE news_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE news_posts ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE admin_users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'",
 ]) {
   try {
     db.prepare(statement).run();
@@ -628,15 +629,15 @@ export function getAdminByEmail(email) {
 }
 
 export function getAdminById(id) {
-  return db.prepare("SELECT id, email, name FROM admin_users WHERE id = ?").get(id);
+  return db.prepare("SELECT id, email, name, role FROM admin_users WHERE id = ?").get(id);
 }
 
-export function createAdminUser({ email, passwordHash, name }) {
+export function createAdminUser({ email, passwordHash, name, role = "admin" }) {
   db.prepare(
-    `INSERT INTO admin_users (email, password_hash, name, updated_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    `INSERT INTO admin_users (email, password_hash, name, role, updated_at)
+     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(email) DO NOTHING`,
-  ).run(email, passwordHash, name);
+  ).run(email, passwordHash, name, role);
 
   return getAdminByEmail(email);
 }
