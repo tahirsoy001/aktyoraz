@@ -1659,8 +1659,11 @@ app.get("/sitemap.xml", (_request, response) => {
     sitemapUrl("/", "1.0"),
     sitemapUrl("/actors", "0.9"),
     sitemapUrl("/news", "0.8"),
-    sitemapUrl("/apply", "0.7"),
+    sitemapUrl("/education", "0.8"),
     sitemapUrl("/casting-ai", "0.7"),
+    sitemapUrl("/director", "0.7"),
+    sitemapUrl("/about", "0.7"),
+    sitemapUrl("/apply", "0.5"),
   ];
   const actorUrls = actors.flatMap((actor) => [
     sitemapUrl(`/actors/${encodeURIComponent(actor.slug)}`, "0.8"),
@@ -2681,6 +2684,56 @@ function getPageMeta(pathname) {
     };
   }
 
+  if (pathname === "/education") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/education`,
+      description: "Aktyor.az Təhsil bölməsi aktyorluq, rejissorluq və ssenari kursları üçün qeydiyyat, dərs materialları və çəkiliş posterlərini bir araya gətirir.",
+      title: "Təhsil - aktyorluq, rejissorluq və ssenari kursları | Aktyor.az",
+      type: "website",
+    };
+  }
+
+  if (pathname === "/casting-ai") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/casting-ai`,
+      description: "AI kastinq vasitəsilə obraz təsvirinə uyğun aktyor və aktrisaları Aktyor.az bazasından daha sürətli seçin.",
+      title: "AI kastinq - obraz üçün aktyor seçimi | Aktyor.az",
+      type: "website",
+    };
+  }
+
+  if (pathname === "/director") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/director`,
+      description: "Rejissor kabinetində layihə yaradın, obrazlar üzrə aktyor namizədlərini seçin və kastinq siyahısını PDF kimi paylaşın.",
+      title: "Rejissor kabineti - kastinq layihəsi yarat | Aktyor.az",
+      type: "website",
+    };
+  }
+
+  if (pathname === "/about") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/about`,
+      description: "Azərbaycan Aktyor və Aktrisa Bazası haqqında məlumat, platformanın missiyası, AI kastinq yanaşması, medal qaydaları və istifadə şərtləri.",
+      title: "Haqqımızda - Azərbaycan Aktyor və Aktrisa Bazası | Aktyor.az",
+      type: "website",
+    };
+  }
+
+  if (pathname === "/apply") {
+    return {
+      ...defaultMeta,
+      canonical: `${publicBaseUrl}/apply`,
+      description: "Aktyor.az bazasına qoşulmaq və təsdiqlənmiş aktyor profili yaratmaq üçün müraciət forması.",
+      title: "Bazaya qoşul - aktyor profili üçün müraciət | Aktyor.az",
+      type: "website",
+    };
+  }
+
   if (pathname.startsWith("/news/")) {
     const slug = decodeURIComponent(pathname.replace("/news/", ""));
     const post = getNewsPostBySlug(slug);
@@ -2751,12 +2804,15 @@ function appShellHtml(pathname) {
     .replace("</head>", `    ${metaTags(meta)}\n  </head>`);
 }
 
-app.get(["/", "/actors", "/actors/:slug", "/news", "/news/:slug", "/id/:id"], (request, response) => {
-  response
-    .type("html")
-    .set("Cache-Control", "public, max-age=60")
-    .send(appShellHtml(request.path));
-});
+app.get(
+  ["/", "/actors", "/actors/:slug", "/news", "/news/:slug", "/education", "/casting-ai", "/director", "/about", "/apply", "/id/:id"],
+  (request, response) => {
+    response
+      .type("html")
+      .set("Cache-Control", "public, max-age=60")
+      .send(appShellHtml(request.path));
+  },
+);
 
 app.use((error, _request, response, _next) => {
   if (error instanceof multer.MulterError || error.message?.includes("only jpeg")) {
